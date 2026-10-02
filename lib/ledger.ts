@@ -1,5 +1,5 @@
-export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string};
-export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;start:string;end:string;notes:string};
+export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number};
+export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;start:string;end:string;notes:string;channels?:string[]};
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
 export const empty:Ledger={cards:[],campaigns:[],entries:[]};

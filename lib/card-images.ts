@@ -9,4 +9,5 @@ export const cardImages=[
 const normalize=(v:string)=>v.toLowerCase().replace(/[\s\-＠@]/g,'');
 export function matchedCardImage(name:string,bank:string){const n=normalize(name),b=normalize(bank);return cardImages.find(c=>(!b||b.includes(c.bank)||n.includes(c.bank))&&c.keys.some(k=>n.includes(k)));}
 export function cardImage(card:Card){return card.imageUrl!==undefined?card.imageUrl:matchedCardImage(card.name,card.bank)?.url||'';}
+export function cardImageZoom(src:string){return cardImages.some(c=>c.bank==='永豐'&&c.url===src)?1.24:1;}
 export function safeImageUrl(value:string){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}}
