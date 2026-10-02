@@ -33,3 +33,4 @@ input:focus,select:focus,textarea:focus{outline-color:var(--brand)}.image-editor
  dialog{border-radius:0}.dialog-top{padding:15px 0}.dialog-bottom{padding-bottom:calc(15px + env(safe-area-inset-bottom))}.image-editor{padding:14px}.search-card-image{width:94px}
 }
 @media(prefers-reduced-motion:reduce){.primary:active,.outline:active{transform:none}}
+.card-offer-row small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.6}
