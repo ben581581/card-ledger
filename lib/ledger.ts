@@ -1,4 +1,4 @@
-export type Card={id:string;name:string;bank:string;closeDay:number;color:string};
+export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string};
 export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;start:string;end:string;notes:string};
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
@@ -15,4 +15,12 @@ export function range(c:Campaign,card:Card,on:string){
  if(c.start&&c.start>start)start=c.start;if(c.end&&c.end<end)end=c.end;
  return {start,end,active:start<=on&&on<=end};
 }
-export function progress(c:Campaign,card:Card,entries:Entry[],on:string){const r=range(c,card,on);const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);const spend=rows.reduce((s,e)=>s+e.amount,0);const value=c.kind==='spend'?spend:rows.reduce((s,e)=>s+(e.reward??Math.round(e.amount*c.rate)/100),0);return {...r,spend,value,percent:Math.min(100,Math.max(0,value/c.target*100)),remaining:Math.max(0,c.target-value)};}
+export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
+ const r=range(c,card,on);const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
+ const spend=rows.reduce((s,e)=>s+e.amount,0),value=c.kind==='spend'?spend:rows.reduce((s,e)=>s+(e.reward??Math.round(e.amount*c.rate)/100),0);
+ const remaining=Math.max(0,c.target-value),canConvert=c.kind==='spend'||c.rate>0;
+ // Actual rewards consume the cap even when they differ from the configured rate.
+ const spendLimit=canConvert?(c.kind==='spend'?c.target:c.target*100/c.rate):null;
+ const spendRemaining=canConvert?(c.kind==='spend'?remaining:Math.floor((remaining*100/c.rate+Number.EPSILON)*100)/100):null;
+ return {...r,spend,value,percent:Math.min(100,Math.max(0,value/c.target*100)),remaining,spendLimit,spendRemaining};
+}
