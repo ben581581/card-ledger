@@ -1,4 +1,4 @@
-CREATE TABLE "ledgers" (
+CREATE TABLE IF NOT EXISTS "ledgers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"payload" jsonb NOT NULL,
 	"revision" integer DEFAULT 0 NOT NULL,
