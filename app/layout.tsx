@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import "./polish.css";
+import "./design.css";
 
 export const metadata: Metadata = {
   title: "卡片進度簿｜信用卡回饋與消費追蹤",
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {capable:true,title:"卡片進度簿",statusBarStyle:"black-translucent"},
 };
-export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#0b1110'};
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#101517'};
 
 export default function RootLayout({
   children,
@@ -23,8 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-Hant" data-theme="dark">
-      <body className="antialiased">{children}</body>
+    <html lang="zh-Hant" data-theme="dark" suppressHydrationWarning>
+      <body className="antialiased">
+        <Script id="ledger-theme" strategy="beforeInteractive">{"try{document.documentElement.dataset.theme=localStorage.getItem('card-ledger-theme')==='light'?'light':'dark'}catch{}"}</Script>
+        {children}
+      </body>
     </html>
   );
 }
