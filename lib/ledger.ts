@@ -1,5 +1,5 @@
-export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number};
-export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;start:string;end:string;notes:string;channels?:string[]};
+export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number;lookupOnly?:boolean};
+export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|'unlimited';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;start:string;end:string;notes:string;channels?:string[]};
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
 export const empty:Ledger={cards:[],campaigns:[],entries:[]};
@@ -20,6 +20,7 @@ function floorMoney(value:number){
  return Math.floor(scaled+Number.EPSILON*Math.max(1,Math.abs(scaled)))/100;
 }
 export function range(c:Campaign,card:Card,on:string){
+ if(c.kind==='unlimited')return {start:c.start,end:c.end,active:(!c.start||c.start<=on)&&(!c.end||on<=c.end)};
  const [y,mo]=on.split('-').map(Number);const m=mo-1;let start='',end='';
  if(c.period==='month'){start=date(y,m,1);end=date(y,m+1,0);}
  if(c.period==='quarter'){const q=Math.floor(m/3)*3;start=date(y,q,1);end=date(y,q+3,0);}
@@ -29,7 +30,9 @@ export function range(c:Campaign,card:Card,on:string){
  return {start,end,active:start<=on&&on<=end};
 }
 export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
- const r=range(c,card,on);const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
+ const r=range(c,card,on);
+ if(c.kind==='unlimited')return {...r,spend:0,value:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
+ const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
  // Sum money as cents so decimal purchases cannot leave a phantom cent at the target.
  const spendCents=rows.reduce((sum,e)=>sum+cents(e.amount),0);
  const valueCents=c.kind==='spend'?spendCents:rows.reduce((sum,e)=>sum+(e.reward==null?roundInteger(cents(e.amount)*c.rate/100):cents(e.reward)),0);
