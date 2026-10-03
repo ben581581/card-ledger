@@ -9,9 +9,12 @@ export const metadata: Metadata = {
     "codex-preview": "development",
   },
   icons: {
-    icon: [{url:"/favicon-32.png",sizes:"32x32",type:"image/png"}],
-    shortcut: "/favicon-32.png",
-    apple: [{url:"/apple-touch-icon.png",sizes:"180x180",type:"image/png"}],
+    icon: [
+      {url:"/favicon-16-graphite-v2.png",sizes:"16x16",type:"image/png"},
+      {url:"/favicon-32-graphite-v2.png",sizes:"32x32",type:"image/png"},
+    ],
+    shortcut: "/favicon-32-graphite-v2.png",
+    apple: [{url:"/apple-touch-icon-graphite-v2.png",sizes:"180x180",type:"image/png"}],
   },
   appleWebApp: {capable:true,title:"卡片進度簿",statusBarStyle:"black-translucent"},
 };
