@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {capable:true,title:"卡片進度簿",statusBarStyle:"black-translucent"},
 };
-export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#0b1110'};
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#080a0b'};
 
 export default function RootLayout({
   children,
