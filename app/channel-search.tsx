@@ -1,19 +1,21 @@
 'use client';
-import {useState} from 'react';
+import {useMemo,useState} from 'react';
 import {Search,X,Plus,Pencil,Receipt,ChevronDown,Infinity as InfinityIcon} from 'lucide-react';
 import {Ledger,Campaign,Card,today} from '../lib/ledger';
-import {channelMatches,searchChannels} from '../lib/channels';
+import {channelMatches,featuredChannels,normalizeChannel,searchChannels} from '../lib/channels';
 import {displayPeriod} from '../lib/display-period';
 import {CardArtwork} from './card-artwork';
 const money=(n:number)=>new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2}).format(n);
 
 export function ChannelSearch({data,busy,onEdit,onAdd,onEntry}:{data:Ledger;busy:boolean;onEdit:(c:Campaign)=>void;onAdd:(cardId?:string)=>void;onEntry:(card:Card)=>void}){
  const [query,setQuery]=useState(''),[includeInactive,setIncludeInactive]=useState(false);
- const results=searchChannels(data,query,today(),includeInactive);
+ const on=today();
+ const results=searchChannels(data,query,on,includeInactive);
+ const featured=useMemo(()=>featuredChannels(data,on),[data.cards,data.campaigns,on]);
  const channels=[...new Set(data.campaigns.flatMap(c=>c.channels||[]))];
  return <section className="channel-search">
   <div className="search-box"><Search size={21}/><input aria-label="搜尋優惠通路" type="search" maxLength={80} value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜尋通路，例如：蝦皮、momo"/>{query&&<button aria-label="清除搜尋" onClick={()=>setQuery('')}><X size={18}/></button>}</div>
-  {!!channels.length&&<div className="channel-suggestions">{channels.slice(0,12).map(channel=><button key={channel} className={query===channel?'selected':''} onClick={()=>setQuery(query===channel?'':channel)}>{channel}</button>)}</div>}
+  {!!featured.length&&<div className="featured-channels"><div className="featured-heading"><span>當期精選</span><small>多張卡片有回饋</small></div><div className="channel-suggestions" role="group" aria-label="當期多卡回饋通路">{featured.map(({channel,cardCount})=>{const active=normalizeChannel(query)===normalizeChannel(channel);return <button key={channel} className={active?'selected':''} aria-pressed={active} aria-label={`搜尋${channel}，${cardCount}張卡片有回饋`} onClick={()=>setQuery(active?'':channel)}>{channel}<span className="shortcut-count" aria-hidden="true">{cardCount}張</span></button>;})}</div></div>}
   <div className="search-options"><span role="status" aria-live="polite">{query?`「${query}」· `:''}{results.length} 張卡片</span><label><input type="checkbox" checked={includeInactive} onChange={e=>setIncludeInactive(e.target.checked)}/>包含非活動期間</label></div>
   <div className="search-results">{results.map(({card,matches})=><article className="search-card" key={card.id}>
    <div className="search-card-heading"><div className="search-card-image"><CardArtwork card={card}/></div><div><small>{card.bank||'信用卡'}</small><h2>{card.name}</h2><span>{matches.length} 個符合的優惠</span></div></div>
