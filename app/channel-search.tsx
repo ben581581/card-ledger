@@ -1,6 +1,6 @@
 'use client';
 import {useState} from 'react';
-import {Search,X,Plus,Pencil,Receipt,Infinity as InfinityIcon} from 'lucide-react';
+import {Search,X,Plus,Pencil,Receipt,ChevronDown,Infinity as InfinityIcon} from 'lucide-react';
 import {Ledger,Campaign,Card,today} from '../lib/ledger';
 import {channelMatches,searchChannels} from '../lib/channels';
 import {displayPeriod} from '../lib/display-period';
@@ -21,7 +21,7 @@ export function ChannelSearch({data,busy,onEdit,onAdd,onEntry}:{data:Ledger;busy
     <div className="offer-title"><h3>{c.name}</h3><button aria-label={`編輯 ${c.name}`} onClick={()=>onEdit(c)}><Pencil size={16}/></button></div>
     <div className="offer-metrics"><strong>{c.kind!=='spend'?(c.rateLabel?.trim()||`${c.rate}% 回饋`):'消費滿額活動'}</strong><span className={c.kind==='unlimited'?'unlimited-badge':undefined}>{c.kind==='unlimited'&&(card.lookupOnly?<Search size={15}/>:<InfinityIcon size={15}/>)} {!p.active?'非活動期間':c.kind==='unlimited'?(card.lookupOnly?'優惠查詢':'回饋無上限'):card.lookupOnly?`${c.kind==='reward'?'回饋上限':'消費門檻'} NT$ ${money(c.target)}`:p.remaining===0?c.kind==='reward'?'額度已用滿':'已達標':p.spendRemaining===null?'尚未設定回饋率':`${c.kind==='reward'?'還能刷':'達標還差'} NT$ ${money(p.spendRemaining)}`}</span></div>
     <OfferChannels channels={c.channels||[]} query={query}/>
-    <small className="offer-period">{displayPeriod(c,p)}</small>{c.notes&&<p className="offer-notes">{c.notes}</p>}
+    <small className="offer-period">{displayPeriod(c,p)}</small>{c.notes&&<details className="offer-conditions"><summary aria-label={`${c.name}：查看詳細條件`}>查看詳細條件<ChevronDown size={15} aria-hidden="true"/></summary><p className="offer-notes">{c.notes}</p></details>}
    </div>)}
    <div className="search-card-footer"><span>{card.lookupOnly?<><Search size={14}/>僅查詢優惠通路</>:matches.every(({c})=>c.kind==='unlimited')?<><InfinityIcon size={14}/>無上限優惠</>:'記帳後更新活動進度'}</span>{!card.lookupOnly&&<button className="search-entry" aria-label={`記錄 ${card.name} 的消費`} disabled={busy} onClick={()=>onEntry(card)}><Receipt size={16}/>記錄消費</button>}</div>
   </article>)}</div>
