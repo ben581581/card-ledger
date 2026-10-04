@@ -28,3 +28,24 @@ header{height:62px}.header-brand>img{width:28px;height:28px}.breadcrumb{font-siz
 /* Curated, active merchant shortcuts with distinct-card counts. */
 .featured-channels{margin:12px 0 18px;min-width:0}.featured-heading{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:.71rem;color:var(--muted)}.featured-heading>span{color:var(--text);font-weight:550}.featured-heading small{font-size:.66rem;opacity:.85}.featured-channels .channel-suggestions{margin:0;gap:7px}.featured-channels .channel-suggestions button{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:7px 11px;font-size:.75rem;border-radius:11px}.shortcut-count{font-size:.61rem;line-height:1;white-space:nowrap;color:var(--muted);background:var(--field);border-radius:5px;padding:4px 5px}.featured-channels .selected .shortcut-count{background:var(--brand-soft);color:var(--brand)}
 @media(max-width:760px){.featured-channels{margin:10px 0 15px}.featured-heading{font-size:.67rem}.featured-heading small{font-size:.62rem}.featured-channels .channel-suggestions{padding-bottom:3px}.featured-channels .channel-suggestions button{font-size:.71rem;min-height:40px;gap:6px;padding:7px 10px}.shortcut-count{font-size:.59rem}}
+
+/* Registration requirements stay separate from participation status. */
+.registration-notice{margin:3px 0 9px;font-size:.71rem;color:var(--muted)}
+.registration-notice>summary{display:inline-flex;align-items:center;gap:6px;min-height:40px;max-width:100%;padding:3px 9px;border:1px solid var(--border);border-radius:8px;cursor:pointer;list-style:none;background:var(--field);line-height:1.4}
+.registration-notice>summary::-webkit-details-marker{display:none}
+.registration-notice>summary>span{font-weight:550;min-width:0;overflow-wrap:anywhere}
+.registration-notice>summary>svg{flex-shrink:0}
+.registration-required>summary{color:#9a621d;border-color:#ba843b40;background:#b98c3910}
+:root[data-theme=dark] .registration-required>summary{color:#dbb57a;border-color:#dbb57a38;background:#dbb57a0a}
+.registration-notice[open]>summary>svg:last-child{transform:rotate(180deg)}
+.registration-detail{margin-top:6px;padding:10px 12px;border-left:2px solid var(--border);line-height:1.75}
+.registration-detail p{margin:0;font-size:.74rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.registration-detail a{display:inline-flex;align-items:center;gap:4px;min-height:36px;font-size:.7rem;color:var(--text);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.registration-editor{border:1px solid var(--border);border-radius:12px;padding:0 12px}
+.registration-editor>summary{display:flex;align-items:center;gap:8px;min-height:46px;list-style:none;cursor:pointer;font-size:.8rem}
+.registration-editor>summary::-webkit-details-marker{display:none}
+.registration-editor>summary small{color:var(--muted);font-size:.68rem}
+.registration-editor>summary svg{margin-left:auto}
+.registration-editor[open]>summary svg{transform:rotate(180deg)}
+.registration-editor>div{display:grid;gap:12px;padding:8px 0 12px;min-width:0}
+@media(max-width:760px){.registration-notice{font-size:.68rem}.registration-detail p{font-size:.71rem}}

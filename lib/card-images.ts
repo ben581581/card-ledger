@@ -1,6 +1,7 @@
 import type {Card} from './ledger';
 import {uploadedImagePath} from './uploaded-images';
 export const cardImages=[
+ {id:'fubon-j',name:'富邦J卡',bank:'富邦',keys:['j卡','fubonj'],url:'https://www.fubon.com/banking/images/personal/credit_card/TW/J%E5%8D%A1.gif',source:'https://www.fubon.com/banking/personal/credit_card/all_card/omiyage/omiyage.htm'},
  ...[{color:'黑色',file:'C_230x145B'},{color:'黃色',file:'C_230x145Y'},{color:'粉色',file:'UBear-P230144'}].map((variant,i)=>({id:`esun-ubear-${i+1}`,name:`玉山U Bear ${variant.color}`,bank:'玉山',keys:i===0?['ubear','u熊']:[],url:`https://www.esunbank.com/zh-tw/bank/-/media/New%20ESUNBANK/Credit%20Card/Card%20Intro/bank-card/u-bear/${variant.file}`,source:'https://www.esunbank.com/zh-tw/personal/credit-card/intro/bank-card/u-bear'})),
  ...['獸煌金','獨家女團','納克羅斯','特爾安娜絲','凡恩'].map((variant,i)=>({id:`dbs-aov-${i+1}`,name:`星展傳說對決聯名卡 ${variant}`,bank:'星展',keys:i===0?['傳說對決','aov']:[variant],url:`https://www.dbs.com.tw/personal-zh/cards/dbs-aov/images/cards/type_${i+1}.png`,source:'https://www.dbs.com.tw/personal-zh/cards/dbs-aov/index.html'})),
  {id:'sinopac-jcb',name:'永豐現金回饋JCB卡',bank:'永豐',keys:['jcb現金','現金jcb','現金回饋jcb','jcb現金回饋'],url:'https://bank.sinopac.com/upload/sinopac/picture/16c98d0bff700000bd35.jpg',source:'https://bank.sinopac.com/sinopacBT/personal/credit-card/introduction/bankcard/cashcardJCB.html'},
