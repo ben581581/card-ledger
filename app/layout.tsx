@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./polish.css";
+import "./cardi.css";
 
 export const metadata: Metadata = {
-  title: "卡片進度簿｜信用卡回饋與消費追蹤",
+  title: "CARDI｜信用卡回饋與消費追蹤",
   description: "掌握信用卡回饋上限、帳單週期與消費滿額目標。",
   other: {
     "codex-preview": "development",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon-32-graphite-v2.png",
     apple: [{url:"/apple-touch-icon-graphite-v2.png",sizes:"180x180",type:"image/png"}],
   },
-  appleWebApp: {capable:true,title:"卡片進度簿",statusBarStyle:"black-translucent"},
+  appleWebApp: {capable:true,title:"CARDI",statusBarStyle:"black-translucent"},
 };
 export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#080a0b'};
 
