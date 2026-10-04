@@ -31,6 +31,7 @@ header{height:62px}.header-brand>img{width:28px;height:28px}.breadcrumb{font-siz
 
 /* Registration requirements stay separate from participation status. */
 .registration-notice{margin:3px 0 9px;font-size:.71rem;color:var(--muted)}
+.card-art-frame img.portrait-card,.card-thumb-frame img.portrait-card{object-fit:contain}
 .registration-notice>summary{display:inline-flex;align-items:center;gap:6px;min-height:40px;max-width:100%;padding:3px 9px;border:1px solid var(--border);border-radius:8px;cursor:pointer;list-style:none;background:var(--field);line-height:1.4}
 .registration-notice>summary::-webkit-details-marker{display:none}
 .registration-notice>summary>span{font-weight:550;min-width:0;overflow-wrap:anywhere}
