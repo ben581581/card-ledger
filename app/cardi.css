@@ -50,3 +50,40 @@ header{height:62px}.header-brand>img{width:28px;height:28px}.breadcrumb{font-siz
 .registration-editor[open]>summary svg{transform:rotate(180deg)}
 .registration-editor>div{display:grid;gap:12px;padding:8px 0 12px;min-width:0}
 @media(max-width:760px){.registration-notice{font-size:.68rem}.registration-detail p{font-size:.71rem}}
+
+/* Compact overview: primary progress stays visible, secondary figures expand. */
+.campaign-grid{gap:8px}
+.campaign.progress-card{padding:10px 13px 0;border-radius:13px;min-width:0}
+.progress-card-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.progress-card-identity{min-width:0;flex:1}
+.campaign.progress-card h3{font-size:.88rem;line-height:1.4;margin:0 0 3px;overflow-wrap:anywhere}
+.progress-card-meta{display:flex;align-items:center;flex-wrap:wrap;column-gap:7px;row-gap:2px;font-size:.62rem;line-height:1.45;color:var(--muted)}
+.progress-card-meta>span+span:before{content:'·';color:var(--muted);margin-right:7px}
+.progress-card-bank{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow-wrap:anywhere}
+.progress-card .card-thumb-frame{width:21px;border-radius:3px;flex-shrink:0}
+.progress-card-meta .progress-card-status{color:var(--brand)}
+.progress-card-edit{width:44px;height:44px;flex-shrink:0;color:var(--muted);opacity:.8;border-radius:8px;margin-right:-7px}
+.progress-card-edit:hover{background:var(--soft);opacity:1}
+.progress-card-metric{display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:30px;margin-top:5px}
+.progress-card-metric>span{display:flex;align-items:baseline;flex-wrap:wrap;gap:7px;font-size:.7rem;color:var(--muted);min-width:0}
+.progress-card-metric>span>small{font-size:.59rem;white-space:nowrap;opacity:.8}
+.progress-card-metric>strong{display:inline-flex;align-items:baseline;gap:4px;flex-shrink:0;font-size:1.38rem;line-height:1.25;font-weight:650;letter-spacing:-.035em;font-variant-numeric:tabular-nums;color:var(--text)}
+.progress-card-metric>strong>small{font-size:.58rem;font-weight:500;letter-spacing:0;color:var(--muted)}
+.campaign.progress-card.reached .progress-card-metric>strong{color:var(--brand)}
+.campaign.progress-card .bar{height:3px;margin:8px 0 6px}
+.progress-card-footer{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;border-top:1px solid var(--border);min-width:0}
+.progress-card-details{grid-column:1/-1;grid-row:1;min-width:0}
+.progress-card-details>summary{display:flex;align-items:center;gap:5px;width:max-content;max-width:calc(100% - 86px);min-height:44px;list-style:none;cursor:pointer;font-size:.65rem;color:var(--muted)}
+.progress-card-details>summary::-webkit-details-marker{display:none}
+.progress-card-details[open]>summary svg{transform:rotate(180deg)}
+.progress-card-details>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;border-radius:5px}
+.progress-card-detail-body{padding:1px 0 10px;min-width:0;color:var(--muted);font-size:.7rem;line-height:1.65}
+.progress-card-detail-body .progress-card-period{font-size:.65rem;margin:0 0 9px}
+.progress-card-detail-body dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 9px}
+.progress-card-detail-body dt{font-size:.64rem;margin:0 0 2px}
+.progress-card-detail-body dd{font-size:.77rem;color:var(--text);margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.progress-card-detail-body p{margin:0;font-size:.7rem;overflow-wrap:anywhere}
+.progress-card-detail-body .progress-card-notes{white-space:pre-wrap;margin-top:7px}
+.progress-card-delete{font-size:.65rem;min-height:44px;padding:0;color:var(--muted);margin-top:4px}
+.progress-card-entry{grid-column:2;grid-row:1;align-self:start;min-height:44px;padding:0 0 0 12px;font-size:.68rem;font-weight:550;color:var(--brand);z-index:1}
+@media(max-width:360px){.campaign.progress-card{padding:9px 11px 0}.progress-card-metric>span{gap:4px}.progress-card-metric>strong{font-size:1.25rem}.progress-card-meta{column-gap:5px}.progress-card-meta>span+span:before{margin-right:5px}}
