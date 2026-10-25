@@ -56,7 +56,7 @@ header{height:62px}.header-brand>img{width:28px;height:28px}.breadcrumb{font-siz
 .campaign.progress-card{padding:10px 13px 0;border-radius:13px;min-width:0}
 .progress-card-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
 .progress-card-identity{min-width:0;flex:1}
-.campaign.progress-card h3{font-size:.88rem;line-height:1.4;margin:0 0 3px;overflow-wrap:anywhere}
+.campaign.progress-card .progress-card-title{font-size:.88rem;font-weight:650;letter-spacing:-.02em;line-height:1.4;margin:0 0 3px;overflow-wrap:anywhere}
 .progress-card-meta{display:flex;align-items:center;flex-wrap:wrap;column-gap:7px;row-gap:2px;font-size:.62rem;line-height:1.45;color:var(--muted)}
 .progress-card-meta>span+span:before{content:'·';color:var(--muted);margin-right:7px}
 .progress-card-bank{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow-wrap:anywhere}
@@ -87,3 +87,14 @@ header{height:62px}.header-brand>img{width:28px;height:28px}.breadcrumb{font-siz
 .progress-card-delete{font-size:.65rem;min-height:44px;padding:0;color:var(--muted);margin-top:4px}
 .progress-card-entry{grid-column:2;grid-row:1;align-self:start;min-height:44px;padding:0 0 0 12px;font-size:.68rem;font-weight:550;color:var(--brand);z-index:1}
 @media(max-width:360px){.campaign.progress-card{padding:9px 11px 0}.progress-card-metric>span{gap:4px}.progress-card-metric>strong{font-size:1.25rem}.progress-card-meta{column-gap:5px}.progress-card-meta>span+span:before{margin-right:5px}}
+
+/* Each card keeps its activities together, ordered by unfinished progress. */
+.overview-grouping-note{font-size:.65rem;line-height:1.5;color:var(--muted);margin:0 0 11px}
+.campaign-groups{display:grid;gap:19px;min-width:0}
+.campaign-group{min-width:0}
+.campaign-group-heading{display:flex;align-items:center;gap:8px;min-height:27px;margin-bottom:7px;padding:0 2px;color:var(--muted)}
+.campaign-group-heading .card-thumb-frame{width:23px;border-radius:3px;flex-shrink:0}
+.campaign-group-heading h3{font-size:.78rem;font-weight:600;line-height:1.4;color:var(--text);min-width:0;overflow-wrap:anywhere;margin:0}
+.campaign-group-heading>span{font-size:.61rem;white-space:nowrap}
+.campaign-group-heading .group-priority{margin-left:auto;color:var(--brand);font-size:.61rem;font-weight:500}
+@media(max-width:760px){.campaign-groups{gap:16px}.campaign-group-heading{gap:7px}.campaign-group-heading h3{font-size:.75rem}}

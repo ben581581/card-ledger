@@ -26,7 +26,7 @@ export function CampaignProgress({campaign:c,card,value:p,viewDate,saving,onEdit
  return <article className={`campaign progress-card ${!p.active?'inactive':p.remaining===0?'reached':''}`} aria-label={`${card.name} ${c.name}`} style={{'--accent':card.color} as React.CSSProperties}>
   <div className="progress-card-heading">
    <div className="progress-card-identity">
-    <h3>{c.name}</h3>
+    <h4 className="progress-card-title">{c.name}</h4>
     <div className="progress-card-meta"><span className="progress-card-bank"><CardArtwork card={card} compact/>{card.name}</span><span>{periods[c.period]}</span><span className={p.active?'progress-card-status':''}>{status}</span></div>
    </div>
    <button className="progress-card-edit" aria-label={`編輯 ${c.name}`} onClick={onEdit}><Pencil size={15}/></button>
