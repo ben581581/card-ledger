@@ -1,9 +1,10 @@
 import type {Registration} from './registration';
 export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number;lookupOnly?:boolean};
-export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|'unlimited';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;rateLabel?:string;start:string;end:string;notes:string;channels?:string[];registration?:Registration};
+export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|'unlimited';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;rateLabel?:string;queryOnly?:boolean;start:string;end:string;notes:string;channels?:string[];registration?:Registration};
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
 export const empty:Ledger={cards:[],campaigns:[],entries:[]};
+export function tracksProgress(c:Campaign){return c.kind!=='unlimited'&&!c.queryOnly;}
 export function today(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());}
 function calendar(y:number,m:number,d:number){
  const value=new Date(0);
@@ -32,7 +33,7 @@ export function range(c:Campaign,card:Card,on:string){
 }
 export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
  const r=range(c,card,on);
- if(c.kind==='unlimited')return {...r,spend:0,value:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
+ if(!tracksProgress(c))return {...r,spend:0,value:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
  const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
  // Sum money as cents so decimal purchases cannot leave a phantom cent at the target.
  const spendCents=rows.reduce((sum,e)=>sum+cents(e.amount),0);
