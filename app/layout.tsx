@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./polish.css";
 import "./cardi.css";
+import "./exchange-rates.css";
 
 export const metadata: Metadata = {
   title: "CARDI｜信用卡回饋與消費追蹤",
