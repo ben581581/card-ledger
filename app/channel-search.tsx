@@ -6,14 +6,15 @@ import {channelMatches,featuredChannels,normalizeChannel,searchChannels} from '.
 import {displayPeriod} from '../lib/display-period';
 import {CardArtwork} from './card-artwork';
 import {RegistrationNotice} from './registration-notice';
-const money=(n:number)=>new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2}).format(n);
+const moneyFormatter=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
+const money=(n:number)=>moneyFormatter.format(n);
 
 export function ChannelSearch({data,busy,onEdit,onAdd,onEntry}:{data:Ledger;busy:boolean;onEdit:(c:Campaign)=>void;onAdd:(cardId?:string)=>void;onEntry:(card:Card)=>void}){
  const [query,setQuery]=useState(''),[includeInactive,setIncludeInactive]=useState(false);
  const on=today();
  const results=searchChannels(data,query,on,includeInactive);
  const featured=useMemo(()=>featuredChannels(data,on),[data.cards,data.campaigns,on]);
- const channels=[...new Set(data.campaigns.flatMap(c=>c.channels||[]))];
+ const hasChannels=data.campaigns.some(c=>c.channels?.length);
  return <section className="channel-search">
   <div className="search-box"><Search size={21}/><input aria-label="搜尋優惠通路" type="search" maxLength={80} value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜尋通路，例如：蝦皮、momo"/>{query&&<button aria-label="清除搜尋" onClick={()=>setQuery('')}><X size={18}/></button>}</div>
   {!!featured.length&&<div className="featured-channels"><div className="featured-heading"><span>當期精選</span><small>多張卡片有回饋</small></div><div className="channel-suggestions" role="group" aria-label="當期多卡回饋通路">{featured.map(({channel,cardCount})=>{const active=normalizeChannel(query)===normalizeChannel(channel);return <button key={channel} className={active?'selected':''} aria-pressed={active} aria-label={`搜尋${channel}，${cardCount}張卡片有回饋`} onClick={()=>setQuery(active?'':channel)}>{channel}<span className="shortcut-count" aria-hidden="true">{cardCount}張</span></button>;})}</div></div>}
@@ -29,7 +30,7 @@ export function ChannelSearch({data,busy,onEdit,onAdd,onEntry}:{data:Ledger;busy
    </div>)}
    <div className="search-card-footer"><span>{card.lookupOnly?<><Search size={14}/>僅查詢優惠通路</>:matches.every(({c})=>c.kind==='unlimited'||c.queryOnly)?matches.some(({c})=>c.queryOnly)?<><Search size={14}/>優惠查詢</>:<><InfinityIcon size={14}/>無上限優惠</>:'記帳後更新活動進度'}</span>{!card.lookupOnly&&<button className="search-entry" aria-label={`記錄 ${card.name} 的消費`} disabled={busy} onClick={()=>onEntry(card)}><Receipt size={16}/>記錄消費</button>}</div>
   </article>)}</div>
-  {!results.length&&<div className="empty"><Search size={32}/><h2>{channels.length?'沒有符合的優惠':'先填入卡片的優惠通路'}</h2><p>{channels.length?'試試其他通路名稱，或勾選「包含非活動期間」。':'在「我的卡片」新增或編輯優惠活動，填入蝦皮、momo 等通路，就能在這裡搜尋。'}</p><button className="outline" disabled={busy||!data.cards.length} onClick={()=>onAdd()}><Plus size={16}/>新增優惠活動</button></div>}
+  {!results.length&&<div className="empty"><Search size={32}/><h2>{hasChannels?'沒有符合的優惠':'先填入卡片的優惠通路'}</h2><p>{hasChannels?'試試其他通路名稱，或勾選「包含非活動期間」。':'在「我的卡片」新增或編輯優惠活動，填入蝦皮、momo 等通路，就能在這裡搜尋。'}</p><button className="outline" disabled={busy||!data.cards.length} onClick={()=>onAdd()}><Plus size={16}/>新增優惠活動</button></div>}
   <p className="footnote">回饋率分別顯示，不會自動相加。展開提醒查看登錄與設定條件；實際資格與名額以銀行官方公告為準。</p>
  </section>;
 }

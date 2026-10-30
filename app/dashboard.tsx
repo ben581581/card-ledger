@@ -5,6 +5,7 @@ import {useLedger} from './use-ledger';
 import type {Modal} from './editor-types';
 const ExchangeRates=dynamic(()=>import('./exchange-rates'),{loading:()=> <p className="footnote" role="status">開啟匯率試算…</p>});
 const Editor=dynamic(()=>import('./editor'),{loading:()=> <div className="save-toast" role="status">開啟表單…</div>});
+const ChannelSearch=dynamic(()=>import('./channel-search').then(module=>module.ChannelSearch),{loading:()=> <p className="footnote" role="status">開啟優惠搜尋…</p>});
 import {Plus,RefreshCw,Wallet,Target,Receipt,Cloud,Trash2,Pencil,ChevronDown,ChevronLeft,ChevronRight,Moon,Sun,Search,Check,CalendarDays,ArrowLeftRight,Infinity as InfinityIcon} from 'lucide-react';
 import {Card,Campaign,Entry,Ledger,today,progress,tracksProgress} from '../lib/ledger';
 import {safeImageUrl} from '../lib/card-images';
@@ -12,7 +13,6 @@ import {parseChannels} from '../lib/channels';
 import {registrationFromFields,safeRegistrationUrl} from '../lib/registration';
 import {displayPeriod} from '../lib/display-period';
 import {CardArtwork} from './card-artwork';
-import {ChannelSearch} from './channel-search';
 import {CampaignProgress} from './campaign-progress';
 import {groupCampaigns} from '../lib/group-campaigns';
 
@@ -46,8 +46,8 @@ export default function Dashboard(){
  const campaigns=useMemo(()=>data.campaigns.filter(c=>tracksProgress(c)&&(selected==='all'||c.cardId===selected)).map(c=>({c,card:data.cards.find(x=>x.id===c.cardId)!})).filter(x=>x.card&&!x.card.lookupOnly).map(x=>({...x,p:progress(x.c,x.card,data.entries,on)})),[data,selected,on]);
  const active=campaigns.filter(x=>x.p.active),spent=data.entries.filter(e=>e.date.startsWith(on.slice(0,7))&&(selected==='all'||e.cardId===selected)).reduce((s,e)=>s+Math.round(e.amount*100),0)/100;
  const shownCampaigns=scope==='active'?active:campaigns;
- const groupedCampaigns=groupCampaigns(shownCampaigns,data.cards);
- const filteredEntries=data.entries.filter(e=>selected==='all'||e.cardId===selected).sort((a,b)=>b.date.localeCompare(a.date));
+ const groupedCampaigns=useMemo(()=>view==='overview'?groupCampaigns(scope==='active'?campaigns.filter(x=>x.p.active):campaigns,data.cards):[],[view,campaigns,scope,data.cards]);
+ const filteredEntries=useMemo(()=>view==='entries'?data.entries.filter(e=>selected==='all'||e.cardId===selected).sort((a,b)=>b.date.localeCompare(a.date)):[],[view,data.entries,selected]);
  const selectedCard=selected==='all'?undefined:selected;
  const hasLookupOffers=data.cards.some(c=>c.lookupOnly&&(selected==='all'||c.id===selected))||data.campaigns.some(c=>(c.kind==='unlimited'||c.queryOnly)&&(selected==='all'||c.cardId===selected));
  const recordCard=selectedCard||data.cards.find(c=>!c.lookupOnly)?.id||data.cards[0]?.id;
