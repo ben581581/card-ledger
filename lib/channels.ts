@@ -1,4 +1,5 @@
 import {Ledger,progress,range} from './ledger';
+import {indexEntriesByCampaign} from './entry-index';
 
 export function parseChannels(value:string){
  return [...new Set(value.split(/[,，、;；\n]+/).map(s=>s.trim()).filter(Boolean))];
@@ -12,9 +13,9 @@ function channelMatcher(query:string){
  return (channel:string)=>{if(!term)return true;const text=normalizeChannel(channel);return terms.some(alias=>text.includes(alias));};
 }
 export function channelMatches(channel:string,query:string){return channelMatcher(query)(channel);}
-export function searchChannels(data:Ledger,query:string,on:string,includeInactive=false){
+export function searchChannels(data:Ledger,query:string,on:string,includeInactive=false,entriesByCampaign=indexEntriesByCampaign(data.entries)){
  const matchesChannel=channelMatcher(query);
- return data.cards.map(card=>({card,matches:data.campaigns.filter(c=>c.cardId===card.id&&(c.channels||[]).some(matchesChannel)).map(c=>({c,p:progress(c,card,data.entries,on)})).filter(({p})=>includeInactive||p.active)})).filter(result=>result.matches.length>0);
+ return data.cards.map(card=>({card,matches:data.campaigns.filter(c=>c.cardId===card.id&&(c.channels||[]).some(matchesChannel)).map(c=>({c,p:progress(c,card,entriesByCampaign.get(c.id)||[],on)})).filter(({p})=>includeInactive||p.active)})).filter(result=>result.matches.length>0);
 }
 
 // Keep shortcuts useful for comparison, rather than following campaign entry order.

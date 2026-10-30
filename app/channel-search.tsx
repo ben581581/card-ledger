@@ -6,13 +6,15 @@ import {channelMatches,featuredChannels,normalizeChannel,searchChannels} from '.
 import {displayPeriod} from '../lib/display-period';
 import {CardArtwork} from './card-artwork';
 import {RegistrationNotice} from './registration-notice';
+import {indexEntriesByCampaign} from '../lib/entry-index';
 const moneyFormatter=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
 const money=(n:number)=>moneyFormatter.format(n);
 
 export function ChannelSearch({data,busy,onEdit,onAdd,onEntry}:{data:Ledger;busy:boolean;onEdit:(c:Campaign)=>void;onAdd:(cardId?:string)=>void;onEntry:(card:Card)=>void}){
  const [query,setQuery]=useState(''),[includeInactive,setIncludeInactive]=useState(false);
  const on=today();
- const results=searchChannels(data,query,on,includeInactive);
+ const entriesByCampaign=useMemo(()=>indexEntriesByCampaign(data.entries),[data.entries]);
+ const results=useMemo(()=>searchChannels(data,query,on,includeInactive,entriesByCampaign),[data,query,on,includeInactive,entriesByCampaign]);
  const featured=useMemo(()=>featuredChannels(data,on),[data.cards,data.campaigns,on]);
  const hasChannels=data.campaigns.some(c=>c.channels?.length);
  return <section className="channel-search">
