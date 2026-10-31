@@ -4,6 +4,9 @@ export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
 export const empty:Ledger={cards:[],campaigns:[],entries:[]};
+export function removeCampaign(data:Ledger,id:string):Ledger{
+ return {...data,campaigns:data.campaigns.filter(c=>c.id!==id),entries:data.entries.map(entry=>entry.campaignIds.includes(id)?{...entry,campaignIds:entry.campaignIds.filter(value=>value!==id)}:entry)};
+}
 export function tracksProgress(c:Campaign){return c.kind!=='unlimited'&&!c.queryOnly;}
 export function today(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());}
 function calendar(y:number,m:number,d:number){

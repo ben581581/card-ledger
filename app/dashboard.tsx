@@ -7,7 +7,7 @@ const ExchangeRates=dynamic(()=>import('./exchange-rates'),{loading:()=> <p clas
 const Editor=dynamic(()=>import('./editor'),{loading:()=> <div className="save-toast" role="status">開啟表單…</div>});
 const ChannelSearch=dynamic(()=>import('./channel-search').then(module=>module.ChannelSearch),{loading:()=> <p className="footnote" role="status">開啟優惠搜尋…</p>});
 import {Plus,RefreshCw,Wallet,Target,Receipt,Cloud,ChevronLeft,ChevronRight,Moon,Sun,Search,Check,CalendarDays,ArrowLeftRight} from 'lucide-react';
-import {Card,Campaign,Entry,today,progress,tracksProgress} from '../lib/ledger';
+import {Card,Campaign,Entry,today,progress,tracksProgress,removeCampaign} from '../lib/ledger';
 import {safeImageUrl} from '../lib/card-images';
 import {parseChannels} from '../lib/channels';
 import {registrationFromFields,safeRegistrationUrl} from '../lib/registration';
@@ -34,7 +34,20 @@ export default function Dashboard(){
  useEffect(()=>{if(!ready)return;const timer=setTimeout(()=>{void import('./editor').catch(()=>{});},1200);return()=>clearTimeout(timer);},[ready]);
  function toggleTheme(){const next=theme==='dark'?'light':'dark';setTheme(next);document.documentElement.dataset.theme=next;try{localStorage.setItem('card-ledger-theme',next);}catch{}}
  useEffect(()=>{if(selected!=='all'&&(!data.cards.some(c=>c.id===selected)||(view==='overview'&&data.cards.find(c=>c.id===selected)?.lookupOnly)))setSelected('all');},[data.cards,selected,view]);
- async function remove(type:string,id:string){if(!confirm(type==='card'?'刪除這張卡片及其所有活動、消費紀錄？':'確定刪除這筆資料？'))return;let next=data;if(type==='card')next={cards:data.cards.filter(c=>c.id!==id),campaigns:data.campaigns.filter(c=>c.cardId!==id),entries:data.entries.filter(e=>e.cardId!==id)};if(type==='campaign')next={...data,campaigns:data.campaigns.filter(c=>c.id!==id),entries:data.entries.map(e=>({...e,campaignIds:e.campaignIds.filter(x=>x!==id)}))};if(type==='entry')next={...data,entries:data.entries.filter(e=>e.id!==id)};await save(next);}
+ async function remove(type:'card'|'campaign'|'entry',id:string){
+  if(saving)return false;
+  const message=type==='card'?'刪除這張卡片及其所有活動、消費紀錄？':type==='campaign'?'刪除此活動？消費紀錄會保留，只移除此活動的勾選。':'確定刪除這筆資料？';
+  if(!confirm(message))return false;
+  let next=data;
+  if(type==='card')next={cards:data.cards.filter(c=>c.id!==id),campaigns:data.campaigns.filter(c=>c.cardId!==id),entries:data.entries.filter(e=>e.cardId!==id)};
+  if(type==='campaign')next=removeCampaign(data,id);
+  if(type==='entry')next={...data,entries:data.entries.filter(e=>e.id!==id)};
+  return save(next);
+ }
+ async function deleteEditedCampaign(){
+  if(modal?.type!=='campaign'||!modal.value?.id||modal.isNew)return;
+  if(await remove('campaign',modal.value.id))setModal(null);
+ }
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!modal||saving)return;if(modal.value?.id&&!modal.isNew){const items=modal.type==='card'?data.cards:modal.type==='campaign'?data.campaigns:data.entries;if(!items.some(x=>x.id===modal.value!.id)){setError('這筆資料已被其他人刪除。表單仍保留，請取消編輯後重新建立，避免還原已刪除的資料。');return;}}const f=new FormData(event.currentTarget),val=(k:string)=>String(f.get(k)||''),id=modal.value?.id||crypto.randomUUID();if(modal.type!=='card'&&!data.cards.some(x=>x.id===val('cardId'))){setError('原卡片已被刪除，請重新選擇信用卡。');return;}let next=data;
  if(modal.type==='card'){const c:Card={id,name:val('name').trim(),bank:val('bank').trim(),closeDay:Number(val('closeDay')),color:val('color'),lookupOnly:val('lookupOnly')==='yes',imageZoom:Number(val('imageZoom'))||1,...(val('imageMode')==='auto'?{}:{imageUrl:val('imageMode')==='none'?'':val('imageUrl').trim()})};if(c.imageUrl&&!safeImageUrl(c.imageUrl)){setError('請上傳卡面圖片，或填入 HTTPS 圖片網址。');return;}next={...data,cards:updateItem(data.cards,c)};}
  if(modal.type==='campaign'){const c:Campaign={id,cardId:val('cardId'),name:val('name').trim(),kind:val('kind') as Campaign['kind'],period:val('period') as Campaign['period'],target:Number(val('target')),rate:Number(val('rate')),rateLabel:val('rateLabel').trim(),queryOnly:val('queryOnly')==='yes',start:val('start'),end:val('end'),notes:val('notes'),channels:parseChannels(val('channels')),registration:registrationFromFields(val('registrationType'),val('registrationLabel'),val('registrationDetails'),val('registrationUrl'))};if(c.registration?.url&&!safeRegistrationUrl(c.registration.url)){setError('請填入 HTTPS 官方說明或登錄網址。');return;}if((c.start&&c.end&&c.start>c.end)||(c.kind!=='unlimited'&&c.period==='custom'&&(!c.start||!c.end))){setError('請填入有效的起訖日期。');return;}next={...data,campaigns:updateItem(data.campaigns,c)};}
@@ -70,5 +83,5 @@ export default function Dashboard(){
  {!loading&&view==='search'&&<ChannelSearch data={data} busy={saving} onEdit={c=>openEditor({type:'campaign',value:c})} onAdd={cardId=>openEditor({type:'campaign',cardId})} onEntry={card=>openEditor({type:'entry',value:{id:'',cardId:card.id,date:today(),amount:0,note:'',campaignIds:[],reward:null}})}/>}
  {!loading&&view==='entries'&&<EntriesView data={data} selected={selected} saving={saving} onSelect={setSelected} onEdit={openEditor} onDelete={id=>void remove('entry',id)}/>}
  </>}
- </div></main>{(saving||notice)&&<div className="save-toast" role="status">{saving?<RefreshCw size={16} className="spin"/>:<Check size={16}/>} {saving?'正在同步消費與活動…':notice}</div>}{modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} busy={saving} syncing={false} error={error} conflict={conflict} onSync={load} onClose={()=>{if(!saving){setModal(null);setError('');}}} onSubmit={submit}/>}</div>;
+ </div></main>{(saving||notice)&&<div className="save-toast" role="status">{saving?<RefreshCw size={16} className="spin"/>:<Check size={16}/>} {saving?'正在同步消費與活動…':notice}</div>}{modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} busy={saving} syncing={false} error={error} conflict={conflict} onSync={load} onClose={()=>{if(!saving){setModal(null);setError('');}}} onSubmit={submit} onDelete={modal.type==='campaign'&&modal.value?.id&&!modal.isNew?deleteEditedCampaign:undefined}/>}</div>;
 }
