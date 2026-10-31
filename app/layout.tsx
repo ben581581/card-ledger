@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import "./polish.css";
 import "./cardi.css";
 import "./exchange-rates.css";
 
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {capable:true,title:"CARDI",statusBarStyle:"black-translucent"},
 };
-export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#080a0b'};
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#101115'};
 
 export default function RootLayout({
   children,
