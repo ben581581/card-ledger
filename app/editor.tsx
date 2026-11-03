@@ -13,7 +13,7 @@ import type {Modal} from './editor-types';
 import {periodNames} from './format';
 
 const colors=[['#2563eb','藍'],['#7c3aed','紫'],['#0e7490','青'],['#be185d','桃紅'],['#b45309','琥珀'],['#334155','石墨']];
-type Props={modal:Modal;cards:Card[];campaigns:Campaign[];busy:boolean;error:string;conflict:boolean;onSync:()=>Promise<void>;onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;onDelete?:()=>void};
+type Props={modal:Modal;cards:Card[];campaigns:Campaign[];notes?:string[];busy:boolean;error:string;conflict:boolean;onSync:()=>Promise<void>;onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;onDelete?:()=>void};
 
 export default function Editor(props:Props){
  const {modal,busy,error,conflict,onSync,onClose,onSubmit,onDelete}=props;
@@ -36,7 +36,8 @@ export default function Editor(props:Props){
 }
 
 /* ── 記一筆 ─────────────────────────────────────────────── */
-function EntryForm({modal,cards,campaigns}:Props){
+function EntryForm({modal,cards,campaigns,notes=[]}:Props){
+ const [note,setNote]=useState(modal.value&&'note'in modal.value?modal.value.note:'');
  const e=modal.value as Entry|undefined,isNew=!e?.id;
  const choices=cards.filter(c=>!c.lookupOnly||c.id===e?.cardId);
  const [cardId,setCardId]=useState(modal.cardId||e?.cardId||choices[0]?.id||'');
@@ -66,8 +67,9 @@ function EntryForm({modal,cards,campaigns}:Props){
   </div>
   <div className="form-group" style={{marginTop:10}}>
    <label className="field"><span>日期</span><input name="date" type="date" required value={date} onChange={ev=>setDate(ev.target.value)}/></label>
-   <label className="field"><span>說明</span><input name="note" maxLength={500} defaultValue={e?.note} placeholder="例如：全聯、蝦皮"/></label>
+   <label className="field"><span>說明</span><input name="note" maxLength={500} value={note} onChange={ev=>setNote(ev.target.value)} placeholder="例如：全聯、蝦皮"/></label>
   </div>
+  {notes.length>0&&<div className="chips" style={{marginTop:10}} role="group" aria-label="常用說明">{notes.map(n=><button type="button" key={n} className="chip" aria-pressed={note===n} onClick={()=>setNote(note===n?'':n)}>{n}</button>)}</div>}
 
   <div className="form-label" style={{display:'flex',justifyContent:'space-between'}}><span>計入活動 · 已選 {chosen.length}</span>{trackable.length>0&&<button type="button" className="link" style={{fontSize:13}} onClick={()=>setPicked(chosen.length?[]:live.map(c=>c.id))}>{chosen.length?'全部取消':'選當期'}</button>}</div>
   {trackable.length?<div className="form-group">

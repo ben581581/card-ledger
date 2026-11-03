@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState,type FormEvent} from 'react';
 import dynamic from 'next/dynamic';
-import {Gauge,Tag,ArrowLeftRight,WalletCards,Plus,Check,RefreshCw,AlertCircle} from 'lucide-react';
+import {Gauge,Tag,ArrowLeftRight,WalletCards,Plus,Check,RefreshCw,AlertCircle,ChevronLeft,ChevronRight} from 'lucide-react';
 import {useLedger} from './use-ledger';
 import type {Modal} from './editor-types';
 import {type Card,type Campaign,type Entry,type Ledger,today,removeCampaign} from '../lib/ledger';
@@ -20,7 +20,6 @@ const Editor=dynamic(()=>import('./editor'),{ssr:false});
 type Tab='limits'|'offers'|'rates'|'wallet';
 type Detail={kind:'campaign';row:Row}|{kind:'offer';offer:Offer;query:string}|{kind:'card';card:Card};
 const tabs:[Tab,string,typeof Gauge][]=[['limits','額度',Gauge],['offers','優惠',Tag],['rates','匯率',ArrowLeftRight],['wallet','錢包',WalletCards]];
-const titles:Record<Tab,[string,string]>={limits:['額度','這個週期還能刷多少'],offers:['優惠','這家店，該刷哪張卡'],rates:['匯率','海外刷卡，先算台幣'],wallet:['錢包','卡片、優惠與消費紀錄']};
 const upsert=<T extends {id:string}>(items:T[],item:T)=>items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):[...items,item];
 const blankEntry=(cardId:string):Entry=>({id:'',cardId,date:today(),amount:0,note:'',campaignIds:[],reward:null});
 
@@ -90,21 +89,24 @@ export default function Dashboard(){
   if(await save(next))setModal(null);
  }
 
- const [title,subtitle]=titles[tab];
+ // Most recent distinct notes power the one-tap shortcuts in 記一筆.
+ const recentNotes=[...new Set(data.entries.map((e,i)=>({e,i})).sort((a,b)=>b.e.date.localeCompare(a.e.date)||b.i-a.i).map(x=>x.e.note.trim()).filter(Boolean))].slice(0,8);
  const syncState=saving?'儲存中':loading?'讀取中':syncing?(cached?'更新中':'同步中'):error?'未同步':updated?new Date(updated).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):'已連線';
 
  return <>
   <div className="ambient" aria-hidden="true"/>
   <div className="app">
    <header className={`navbar${scrolled?' scrolled':''}`}>
-    <img src="/brand-icon-graphite-v2.png" alt="CARDI" width={30} height={30} style={{borderRadius:9}}/>
-    <span className="mini-title" aria-hidden="true">{title}</span>
+    {tab==='limits'?<div className="month" role="group" aria-label="查看月份">
+     <button aria-label="上個月" onClick={()=>shift(-1)}><ChevronLeft size={18}/></button>
+     <button className="month-label" onClick={()=>setOn(now)} aria-label="回到本月">{Number(on.slice(5,7))} 月{on.slice(0,4)!==now.slice(0,4)&&<small>{on.slice(0,4)}</small>}</button>
+     <button aria-label="下個月" onClick={()=>shift(1)}><ChevronRight size={18}/></button>
+    </div>:<span/>}
     <button className={`sync${saving||loading||syncing?' busy':error?' bad':''}`} disabled={saving||loading||syncing} onClick={()=>void load()} aria-label={`雲端同步：${syncState}，點一下重新整理`}><i/>{syncState}</button>
    </header>
-   <div className="large-title"><h1>{title}</h1><p>{subtitle}</p></div>
    {error&&!modal&&tab!=='rates'&&<div className="banner" role="alert"><AlertCircle size={18} style={{marginTop:1}}/><div>{error}<button onClick={()=>void load()}>重新讀取</button></div></div>}
    <main>
-    {tab==='limits'&&<LimitsView data={data} on={on} today={now} loading={loading} onShift={shift} onToday={()=>setOn(now)} onOpen={row=>setDetail({kind:'campaign',row})} onCard={card=>setDetail({kind:'card',card})} onEntry={openEntry} onAddCampaign={()=>edit({type:'campaign'})} onAddCard={()=>edit({type:'card'})} onAllEntries={()=>{setWalletTab('entries');go('wallet');}}/>}
+    {tab==='limits'&&<LimitsView data={data} on={on} today={now} loading={loading} onOpen={row=>setDetail({kind:'campaign',row})} onCard={card=>setDetail({kind:'card',card})} onEntry={openEntry} onRecord={addEntry} onAddCampaign={cardId=>edit({type:'campaign',cardId})} onAddCard={()=>edit({type:'card'})} onAllEntries={()=>{setWalletTab('entries');go('wallet');}}/>}
     {tab==='offers'&&<OffersView data={data} today={now} onOpen={(offer,query)=>setDetail({kind:'offer',offer,query:query||''})} onAddCampaign={()=>edit({type:'campaign'})}/>}
     {tab==='rates'&&<RatesView/>}
     {tab==='wallet'&&<WalletView data={data} today={now} tab={walletTab} onTab={setWalletTab} onCard={card=>setDetail({kind:'card',card})} onAddCard={()=>edit({type:'card'})} onEntry={openEntry}/>}
@@ -113,7 +115,7 @@ export default function Dashboard(){
 
   <nav className="dock" aria-label="主要功能">
    <div className="tabs">{tabs.map(([key,label,Icon])=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>go(key)}><Icon size={22} strokeWidth={tab===key?2.2:1.8}/>{label}</button>)}</div>
-   <button className="fab" aria-label="記一筆消費" disabled={!ready} onClick={()=>addEntry()}><Plus size={28} strokeWidth={2.6}/></button>
+   {tab!=='limits'&&<button className="fab" aria-label="記一筆消費" disabled={!ready} onClick={()=>addEntry()}><Plus size={28} strokeWidth={2.6}/></button>}
   </nav>
 
   {detail&&<Sheet title={detail.kind==='campaign'?'活動進度':detail.kind==='offer'?'優惠':'卡片'} onClose={()=>setDetail(null)}>
@@ -121,7 +123,7 @@ export default function Dashboard(){
    {detail.kind==='offer'&&<OfferDetail offer={detail.offer} query={detail.query} onEntry={()=>addEntry(detail.offer.card.id)} onEdit={()=>edit({type:'campaign',value:detail.offer.c})}/>}
    {detail.kind==='card'&&<CardDetail card={data.cards.find(c=>c.id===detail.card.id)||detail.card} data={data} today={now} onEntry={()=>addEntry(detail.card.id)} onEdit={()=>edit({type:'card',value:detail.card})} onAddCampaign={()=>edit({type:'campaign',cardId:detail.card.id})} onEditCampaign={c=>edit({type:'campaign',value:c})} onEditEntry={e=>edit({type:'entry',value:e})}/>}
   </Sheet>}
-  {modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} busy={saving} error={error} conflict={conflict} onSync={load}
+  {modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} notes={recentNotes} busy={saving} error={error} conflict={conflict} onSync={load}
    onClose={()=>{if(!saving){setModal(null);setError('');}}} onSubmit={submit}
    onDelete={modal.value?.id&&!modal.isNew?async()=>{if(await remove(modal.type,modal.value!.id))setModal(null);}:undefined}/>}
   {(saving||notice)&&<div className="toast" role="status">{saving?<RefreshCw size={15} className="spin"/>:<Check size={15} strokeWidth={3}/>}{saving?'正在同步…':notice}</div>}
