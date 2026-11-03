@@ -29,10 +29,9 @@ export function ImageUpload({url,busy,onUploaded,onBusy}:{url:string;busy:boolea
   catch(e){setError((e as Error).message||'圖片無法讀取，請重試。');}
   finally{setUploading(false);onBusy(false);if(input.current)input.current.value='';}
  }
- return <div className="upload-panel"><input ref={input} className="upload-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="選擇卡面圖片" disabled={busy||uploading} onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);}}/>
-  <div className="upload-symbol"><ImagePlus size={24}/></div><strong>{url?'更換你的卡面':'上傳自己的卡面'}</strong><span>從手機相簿或電腦選擇圖片</span>
-  <button type="button" className="outline" disabled={busy||uploading} onClick={()=>input.current?.click()}><Upload size={16}/>{uploading?'處理並上傳中…':url?'更換圖片':'選擇圖片'}</button>
-  {url&&<small className="upload-success"><Check size={14}/>圖片已就緒，儲存卡片後套用</small>}
-  <small>支援 JPG、PNG、WebP · 自動壓縮 · 雲端同步</small>{error&&<p role="alert" className="error">{error}</p>}
+ return <div className="upload"><input ref={input} className="sr" type="file" accept="image/jpeg,image/png,image/webp" aria-label="選擇卡面圖片" disabled={busy||uploading} onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);}}/>
+  <button type="button" className="btn btn-gray" style={{height:44,fontSize:15}} disabled={busy||uploading} onClick={()=>input.current?.click()}>{uploading?<Upload size={16} className="spin"/>:<ImagePlus size={17}/>}{uploading?'處理並上傳中…':url?'更換圖片':'從相簿選擇'}</button>
+  {url&&<small className="ok"><Check size={14}/>圖片已就緒，儲存後套用</small>}
+  <small>JPG／PNG／WebP · 自動壓縮 · 雲端同步</small>{error&&<p role="alert" className="inline-error">{error}</p>}
  </div>;
 }

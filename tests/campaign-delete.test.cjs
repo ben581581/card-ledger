@@ -28,13 +28,15 @@ test('deleting an activity preserves spending and every other activity link',()=
 
 const props={cards:[card],campaigns:[offer('existing')],busy:false,syncing:false,error:'',conflict:false,onSync:async()=>{},onClose:()=>{},onSubmit:()=>{},onDelete:async()=>{}};
 const render=modal=>renderToStaticMarkup(React.createElement(Editor,{...props,modal}));
-test('delete is only available for an existing activity and cannot submit the form',()=>{
- const html=render({type:'campaign',value:offer('existing')});
- const button=html.match(/<button\b[^>]*class="editor-delete"[^>]*>/)?.[0];
- assert(button);assert.match(button,/type="button"/);assert(!button.includes('disabled'));
- for(const modal of [{type:'campaign'},{type:'campaign',value:offer('existing'),isNew:true},{type:'card',value:card},{type:'entry',value:entry}])assert(!render(modal).includes('class="editor-delete"'));
+const deleteButton=/<button\b[^>]*class="btn btn-danger[^"]*"[^>]*>/;
+test('delete is only available for existing records and cannot submit the form',()=>{
+ for(const modal of [{type:'campaign',value:offer('existing')},{type:'card',value:card},{type:'entry',value:entry}]){
+  const button=render(modal).match(deleteButton)?.[0];
+  assert(button);assert.match(button,/type="button"/);assert(!button.includes('disabled'));
+ }
+ for(const modal of [{type:'campaign'},{type:'card'},{type:'campaign',value:offer('existing'),isNew:true},{type:'entry',value:{...entry,id:''},isNew:true}])assert(!deleteButton.test(render(modal)));
 });
-test('activity deletion is disabled during a cloud write',()=>{
+test('deletion is disabled during a cloud write',()=>{
  const html=renderToStaticMarkup(React.createElement(Editor,{...props,busy:true,modal:{type:'campaign',value:offer('existing')}}));
- assert.match(html,/<button\b[^>]*class="editor-delete"[^>]*disabled/);
+ assert.match(html.match(deleteButton)?.[0]||'',/disabled/);
 });

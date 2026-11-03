@@ -1,87 +1,129 @@
 'use client';
-import {useState,useEffect,useMemo,type FormEvent} from 'react';
+import {useEffect,useState,type FormEvent} from 'react';
 import dynamic from 'next/dynamic';
+import {Gauge,Tag,ArrowLeftRight,WalletCards,Plus,Check,RefreshCw,AlertCircle} from 'lucide-react';
 import {useLedger} from './use-ledger';
 import type {Modal} from './editor-types';
-const ExchangeRates=dynamic(()=>import('./exchange-rates'),{loading:()=> <p className="footnote" role="status">開啟匯率試算…</p>});
-const Editor=dynamic(()=>import('./editor'),{loading:()=> <div className="save-toast" role="status">開啟表單…</div>});
-const ChannelSearch=dynamic(()=>import('./channel-search').then(module=>module.ChannelSearch),{loading:()=> <p className="footnote" role="status">開啟優惠搜尋…</p>});
-import {Plus,RefreshCw,Wallet,Target,Receipt,Cloud,ChevronLeft,ChevronRight,Moon,Sun,Search,Check,CalendarDays,ArrowLeftRight} from 'lucide-react';
-import {Card,Campaign,Entry,today,progress,tracksProgress,removeCampaign} from '../lib/ledger';
+import {type Card,type Campaign,type Entry,type Ledger,today,removeCampaign} from '../lib/ledger';
 import {safeImageUrl} from '../lib/card-images';
 import {parseChannels} from '../lib/channels';
 import {registrationFromFields,safeRegistrationUrl} from '../lib/registration';
-import {indexEntriesByCampaign} from '../lib/entry-index';
-import {CardArtwork} from './card-artwork';
-import {CampaignProgress} from './campaign-progress';
-import {groupCampaigns} from '../lib/group-campaigns';
+import type {Offer,Row} from '../lib/insights';
+import {LimitsView} from './views/limits';
+import {OffersView} from './views/offers';
+import {WalletView} from './views/wallet';
+import {Sheet} from './sheet';
+import {CampaignDetail,CardDetail,OfferDetail} from './details';
+const RatesView=dynamic(()=>import('./views/rates').then(m=>m.RatesView),{ssr:false,loading:()=><div className="skeleton" style={{height:320}}/>});
+const Editor=dynamic(()=>import('./editor'),{ssr:false});
 
-
-
-const moneyFormatter=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
-const money=(n:number)=>moneyFormatter.format(n);
-
-const CardsView=dynamic(()=>import('./cards-view'),{loading:()=> <p className="footnote" role="status">開啟我的卡片…</p>});
-const EntriesView=dynamic(()=>import('./entries-view'),{loading:()=> <p className="footnote" role="status">開啟消費紀錄…</p>});
-const updateItem=<T extends {id:string}>(items:T[],item:T)=>items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):[...items,item];
-
+type Tab='limits'|'offers'|'rates'|'wallet';
+type Detail={kind:'campaign';row:Row}|{kind:'offer';offer:Offer;query:string}|{kind:'card';card:Card};
+const tabs:[Tab,string,typeof Gauge][]=[['limits','額度',Gauge],['offers','優惠',Tag],['rates','匯率',ArrowLeftRight],['wallet','錢包',WalletCards]];
+const titles:Record<Tab,[string,string]>={limits:['額度','這個週期還能刷多少'],offers:['優惠','這家店，該刷哪張卡'],rates:['匯率','海外刷卡，先算台幣'],wallet:['錢包','卡片、優惠與消費紀錄']};
+const upsert=<T extends {id:string}>(items:T[],item:T)=>items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):[...items,item];
+const blankEntry=(cardId:string):Entry=>({id:'',cardId,date:today(),amount:0,note:'',campaignIds:[],reward:null});
 
 export default function Dashboard(){
- const [modal,setModal]=useState<Modal|null>(null),[view,setView]=useState('overview'),[selected,setSelected]=useState('all'),[on,setOn]=useState(today),[theme,setTheme]=useState('dark'),[scope,setScope]=useState('active');
+ const [tab,setTab]=useState<Tab>('limits'),[walletTab,setWalletTab]=useState<'cards'|'entries'>('cards');
+ const [modal,setModal]=useState<Modal|null>(null),[detail,setDetail]=useState<Detail|null>(null);
+ const [now,setNow]=useState(today),[on,setOn]=useState(today),[scrolled,setScrolled]=useState(false);
  const {data,loading,saving,syncing,ready,cached,error,setError,conflict,setConflict,updated,notice,load,cancelRead,save}=useLedger(!!modal);
- function openEditor(value:Modal){if(!cancelRead())return;setError('');setConflict(false);setModal(value);}
- useEffect(()=>{let saved='dark';try{saved=localStorage.getItem('card-ledger-theme')==='light'?'light':'dark';}catch{}setTheme(saved);document.documentElement.dataset.theme=saved;},[]);
- useEffect(()=>{if(!ready)return;const timer=setTimeout(()=>{void import('./editor').catch(()=>{});},1200);return()=>clearTimeout(timer);},[ready]);
- function toggleTheme(){const next=theme==='dark'?'light':'dark';setTheme(next);document.documentElement.dataset.theme=next;try{localStorage.setItem('card-ledger-theme',next);}catch{}}
- useEffect(()=>{if(selected!=='all'&&(!data.cards.some(c=>c.id===selected)||(view==='overview'&&data.cards.find(c=>c.id===selected)?.lookupOnly)))setSelected('all');},[data.cards,selected,view]);
- async function remove(type:'card'|'campaign'|'entry',id:string){
+
+ useEffect(()=>{
+  const onScroll=()=>setScrolled(window.scrollY>24);
+  const wake=()=>{const d=today();setNow(prev=>{if(prev!==d)setOn(d);return d;});};
+  onScroll();window.addEventListener('scroll',onScroll,{passive:true});document.addEventListener('visibilitychange',wake);
+  return()=>{window.removeEventListener('scroll',onScroll);document.removeEventListener('visibilitychange',wake);};
+ },[]);
+ useEffect(()=>{if(!ready)return;const t=setTimeout(()=>{void import('./editor').catch(()=>{});},1200);return()=>clearTimeout(t);},[ready]);
+
+ function go(next:Tab){if(next===tab)window.scrollTo({top:0,behavior:'smooth'});else{setTab(next);window.scrollTo({top:0});}}
+ function edit(value:Modal){if(!cancelRead())return;setError('');setConflict(false);setDetail(null);setModal(value);}
+ const defaultCard=()=>data.cards.find(c=>!c.lookupOnly)?.id||data.cards[0]?.id||'';
+ function addEntry(cardId?:string){
+  if(!data.cards.length){edit({type:'card'});return;}
+  edit({type:'entry',value:blankEntry(cardId||defaultCard()),isNew:true});
+ }
+ const openEntry=(e?:Entry)=>e?edit({type:'entry',value:e}):addEntry();
+ function shift(n:number){const d=new Date(on+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+n,1);const v=d.toISOString().slice(0,10);setOn(v.slice(0,7)===now.slice(0,7)?now:v);}
+
+ async function remove(type:Modal['type'],id:string){
   if(saving)return false;
-  const message=type==='card'?'刪除這張卡片及其所有活動、消費紀錄？':type==='campaign'?'刪除此活動？消費紀錄會保留，只移除此活動的勾選。':'確定刪除這筆資料？';
+  const message=type==='card'?'刪除這張卡片，以及它的所有活動與消費紀錄？':type==='campaign'?'刪除此活動？消費紀錄會保留。':'刪除這筆消費？';
   if(!confirm(message))return false;
-  let next=data;
+  let next:Ledger=data;
   if(type==='card')next={cards:data.cards.filter(c=>c.id!==id),campaigns:data.campaigns.filter(c=>c.cardId!==id),entries:data.entries.filter(e=>e.cardId!==id)};
   if(type==='campaign')next=removeCampaign(data,id);
   if(type==='entry')next={...data,entries:data.entries.filter(e=>e.id!==id)};
   return save(next);
  }
- async function deleteEditedCampaign(){
-  if(modal?.type!=='campaign'||!modal.value?.id||modal.isNew)return;
-  if(await remove('campaign',modal.value.id))setModal(null);
+
+ async function submit(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();if(!modal||saving)return;
+  const existing=modal.value?.id&&!modal.isNew;
+  if(existing){const items:{id:string}[]=modal.type==='card'?data.cards:modal.type==='campaign'?data.campaigns:data.entries;if(!items.some(x=>x.id===modal.value!.id)){setError('這筆資料已被其他裝置刪除。請取消後重新建立，避免還原已刪除的資料。');return;}}
+  const f=new FormData(event.currentTarget),val=(k:string)=>String(f.get(k)??''),id=existing?modal.value!.id:crypto.randomUUID();
+  if(modal.type!=='card'&&!data.cards.some(c=>c.id===val('cardId'))){setError('請選擇信用卡。');return;}
+  let next=data;
+  if(modal.type==='card'){
+   const mode=val('imageMode');
+   const c:Card={id,name:val('name').trim(),bank:val('bank').trim(),closeDay:Number(val('closeDay'))||15,color:val('color'),lookupOnly:val('lookupOnly')==='yes',imageZoom:Number(val('imageZoom'))||1,...(mode==='auto'?{}:{imageUrl:mode==='none'?'':val('imageUrl').trim()})};
+   if(c.imageUrl&&!safeImageUrl(c.imageUrl)){setError('請上傳卡面圖片，或填入 HTTPS 圖片網址。');return;}
+   next={...data,cards:upsert(data.cards,c)};
+  }
+  if(modal.type==='campaign'){
+   const c:Campaign={id,cardId:val('cardId'),name:val('name').trim(),kind:val('kind') as Campaign['kind'],period:val('period') as Campaign['period'],target:Number(val('target')),rate:Number(val('rate')),rateLabel:val('rateLabel').trim(),queryOnly:val('queryOnly')==='yes',start:val('start'),end:val('end'),notes:val('notes'),channels:parseChannels(val('channels')),registration:registrationFromFields(val('registrationType'),val('registrationLabel'),val('registrationDetails'),val('registrationUrl'))};
+   if(c.registration?.url&&!safeRegistrationUrl(c.registration.url)){setError('請填入 HTTPS 官方說明或登錄網址。');return;}
+   if((c.start&&c.end&&c.start>c.end)||(c.kind!=='unlimited'&&c.period==='custom'&&(!c.start||!c.end))){setError('請填入有效的起訖日期。');return;}
+   next={...data,campaigns:upsert(data.campaigns,c)};
+  }
+  if(modal.type==='entry'){
+   const e:Entry={id,cardId:val('cardId'),date:val('date'),amount:Number(val('amount')),note:val('note').trim(),campaignIds:[...new Set(f.getAll('campaignIds').map(String))],reward:val('reward')===''?null:Number(val('reward'))};
+   next={...data,entries:upsert(data.entries,e)};
+   // Entries save optimistically; the form comes back with its content if the cloud refuses.
+   const draft:Modal={type:'entry',value:e,isNew:!existing};
+   setModal(null);
+   if(!await save(next,true))setModal(draft);
+   return;
+  }
+  if(await save(next))setModal(null);
  }
- async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!modal||saving)return;if(modal.value?.id&&!modal.isNew){const items=modal.type==='card'?data.cards:modal.type==='campaign'?data.campaigns:data.entries;if(!items.some(x=>x.id===modal.value!.id)){setError('這筆資料已被其他人刪除。表單仍保留，請取消編輯後重新建立，避免還原已刪除的資料。');return;}}const f=new FormData(event.currentTarget),val=(k:string)=>String(f.get(k)||''),id=modal.value?.id||crypto.randomUUID();if(modal.type!=='card'&&!data.cards.some(x=>x.id===val('cardId'))){setError('原卡片已被刪除，請重新選擇信用卡。');return;}let next=data;
- if(modal.type==='card'){const c:Card={id,name:val('name').trim(),bank:val('bank').trim(),closeDay:Number(val('closeDay')),color:val('color'),lookupOnly:val('lookupOnly')==='yes',imageZoom:Number(val('imageZoom'))||1,...(val('imageMode')==='auto'?{}:{imageUrl:val('imageMode')==='none'?'':val('imageUrl').trim()})};if(c.imageUrl&&!safeImageUrl(c.imageUrl)){setError('請上傳卡面圖片，或填入 HTTPS 圖片網址。');return;}next={...data,cards:updateItem(data.cards,c)};}
- if(modal.type==='campaign'){const c:Campaign={id,cardId:val('cardId'),name:val('name').trim(),kind:val('kind') as Campaign['kind'],period:val('period') as Campaign['period'],target:Number(val('target')),rate:Number(val('rate')),rateLabel:val('rateLabel').trim(),queryOnly:val('queryOnly')==='yes',start:val('start'),end:val('end'),notes:val('notes'),channels:parseChannels(val('channels')),registration:registrationFromFields(val('registrationType'),val('registrationLabel'),val('registrationDetails'),val('registrationUrl'))};if(c.registration?.url&&!safeRegistrationUrl(c.registration.url)){setError('請填入 HTTPS 官方說明或登錄網址。');return;}if((c.start&&c.end&&c.start>c.end)||(c.kind!=='unlimited'&&c.period==='custom'&&(!c.start||!c.end))){setError('請填入有效的起訖日期。');return;}next={...data,campaigns:updateItem(data.campaigns,c)};}
- if(modal.type==='entry'){const e:Entry={id,cardId:val('cardId'),date:val('date'),amount:Number(val('amount')),note:val('note'),campaignIds:f.getAll('campaignIds').map(String),reward:val('reward')===''?null:Number(val('reward'))};next={...data,entries:updateItem(data.entries,e)};}
- if(modal.type==='entry'){
-  const draft:Modal={type:'entry',value:next.entries.find(e=>e.id===id),isNew:modal.isNew||!modal.value?.id};
-  setModal(null);
-  if(!await save(next,true))setModal(draft);
- }else if(await save(next))setModal(null);
- }
- const campaigns=useMemo(()=>{
-  if(view!=='overview')return [];
-  const cards=new Map(data.cards.map(card=>[card.id,card]));
-  const entries=indexEntriesByCampaign(data.entries);
-  return data.campaigns.filter(c=>tracksProgress(c)&&(selected==='all'||c.cardId===selected))
-   .flatMap(c=>{const card=cards.get(c.cardId);return card&&!card.lookupOnly?[{c,card,p:progress(c,card,entries.get(c.id)||[],on)}]:[];});
- },[data,selected,on,view]);
- const active=campaigns.filter(x=>x.p.active),spent=data.entries.filter(e=>e.date.startsWith(on.slice(0,7))&&(selected==='all'||e.cardId===selected)).reduce((s,e)=>s+Math.round(e.amount*100),0)/100;
- const shownCampaigns=scope==='active'?active:campaigns;
- const groupedCampaigns=useMemo(()=>view==='overview'?groupCampaigns(scope==='active'?campaigns.filter(x=>x.p.active):campaigns,data.cards):[],[view,campaigns,scope,data.cards]);
- const selectedCard=selected==='all'?undefined:selected;
- const hasLookupOffers=data.cards.some(c=>c.lookupOnly&&(selected==='all'||c.id===selected))||data.campaigns.some(c=>(c.kind==='unlimited'||c.queryOnly)&&(selected==='all'||c.cardId===selected));
- const recordCard=selectedCard||data.cards.find(c=>!c.lookupOnly)?.id||data.cards[0]?.id;
- const viewTitle=view==='overview'?'活動總覽':view==='cards'?'我的卡片':view==='search'?'優惠搜尋':view==='rates'?'刷卡匯率':'消費紀錄';
- function shift(n:number){const dt=new Date(on+'T00:00:00Z');dt.setUTCMonth(dt.getUTCMonth()+n,1);setOn(dt.toISOString().slice(0,10));}
- return <div className="shell"><aside><div className="brand"><img className="brand-icon" src="/brand-icon-graphite-v2.png" alt="" width={42} height={42}/><span>CARDI<small>REWARDS JOURNAL</small></span></div><div className="nav-label">我的工作區</div><nav className="cardi-nav">{[['overview','活動總覽',Target],['cards','我的卡片',Wallet],['search','優惠搜尋',Search],['entries','消費紀錄',Receipt],['rates','刷卡匯率',ArrowLeftRight]].map(([key,label,Icon])=><button key={String(key)} aria-current={view===key?'page':undefined} className={view===key?'active':''} onClick={()=>setView(String(key))}>{typeof Icon!=='string'&&<Icon size={19}/>} {String(label)} {key==='cards'&&<span className="count">{data.cards.length}</span>}</button>)}</nav><div className="aside-bottom"><Cloud size={19}/><div>共用雲端帳簿<small>所有裝置，同一本帳簿</small></div></div></aside>
- <main><header><div className="header-brand"><img src="/brand-icon-graphite-v2.png" alt="CARDI" width={32} height={32}/><span className="breadcrumb">CARDI <span>/</span> {viewTitle}</span></div><button className="theme-toggle" aria-label={theme==='dark'?'切換淺色模式':'切換深色模式'} onClick={toggleTheme}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button></header><div className="content"><div className="title-row"><div><div className="eyebrow">REWARDS & MILESTONES</div><h1>{viewTitle}</h1><p>{view==='overview'?'每一筆消費，都離目標更近。':view==='cards'?'管理卡面與優惠通路，隨時編輯各項活動。':view==='search'?'輸入通路，找出適用的卡片與回饋活動。':view==='rates'?'海外刷多少，先算好臺幣金額。':'記下消費，讓各活動的進度同步更新。'}</p></div>{view!=='rates'&&<button className="primary" disabled={!ready||loading||saving||(view!=='cards'&&!data.cards.length)} onClick={()=>openEditor({type:view==='cards'?'card':view==='search'?'campaign':'entry',cardId:view==='search'?selectedCard:recordCard})}><Plus size={18}/>{view==='cards'?'新增卡片':view==='search'?'新增優惠':'記錄消費'}</button>}</div>
- {<>
- {error&&!modal&&view!=='rates'&&<div role="alert" className="error">{error}<button onClick={()=>void load()}>重新讀取</button></div>}
- {view!=='rates'&&<div className="sync-row"><span><Cloud size={15}/>{saving?'正在儲存，請稍候…':loading?'讀取雲端資料…':syncing?cached?'已載入快取 · 更新中…':'同步最新資料…':error?'同步未完成':updated?`已同步 · ${new Date(updated).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit'})}`:'雲端已連線'}</span><button disabled={saving||loading||syncing} onClick={()=>void load()}><RefreshCw size={14}/>重新整理</button></div>}
- {view==='rates'&&<ExchangeRates/>}{loading&&view!=='rates'&&<section className="loading-ledger" aria-label="正在讀取帳簿資料" aria-busy="true"><div className="loading-metrics"/><div className="loading-cards"><div/><div/></div></section>}{!loading&&view==='overview'&&<><section className="stats"><div className="spend-stat"><span><Wallet size={16}/>所選月份消費</span><strong><small>NT$</small> {money(spent)}</strong><footer>{on.slice(0,7).replace('-',' 年 ')} 月</footer></div><div><span><Target size={15}/>當期活動</span><strong>{active.length}<small> 個</small></strong><footer>日曆月、帳單與季度</footer></div><div><span><Check size={15}/>消費已達標</span><strong>{active.filter(x=>x.c.kind==='spend'&&x.p.remaining===0).length}<small> / {active.filter(x=>x.c.kind==='spend').length} 個</small></strong><footer>依活動消費目標計算</footer></div></section><div className="section-row"><h2>活動進度 <span>{shownCampaigns.length}</span></h2><button className="outline" disabled={!data.cards.length||saving} onClick={()=>openEditor({type:'campaign',cardId:selectedCard})}><Plus size={16}/>新增活動</button></div><div className="activity-controls"><div className="activity-toolbar"><div className="segmented" aria-label="活動顯示範圍"><button aria-pressed={scope==='active'} className={scope==='active'?'selected':''} onClick={()=>setScope('active')}>當期活動<span>{active.length}</span></button><button aria-pressed={scope==='all'} className={scope==='all'?'selected':''} onClick={()=>setScope('all')}>全部活動<span>{campaigns.length}</span></button></div></div><div className="filters overview-filters"><select aria-label="篩選卡片" value={selected} onChange={e=>setSelected(e.target.value)}><option value="all">所有追蹤卡片</option>{data.cards.filter(c=>!c.lookupOnly).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><div className="date-control"><CalendarDays className="date-symbol" size={15}/><button aria-label="上一個月" onClick={()=>shift(-1)}><ChevronLeft size={17}/></button><input aria-label="查看日期" type="date" value={on} onChange={e=>e.target.value&&setOn(e.target.value)}/><button aria-label="下一個月" onClick={()=>shift(1)}><ChevronRight size={17}/></button><button onClick={()=>setOn(today())}>今天</button></div></div></div>{!shownCampaigns.length?<div className="empty"><Target size={36}/><h2>{campaigns.length?'這個日期沒有當期活動':hasLookupOffers?'尚無需要追蹤的活動':data.cards.length?selectedCard?'此卡尚無活動':'建立你的第一個活動':'從第一張卡片開始'}</h2><p>{campaigns.length?'可切換全部活動，或選擇其他查看日期。':hasLookupOffers?'無上限優惠與查詢卡可在優惠搜尋查看。需要追蹤時，再新增上限或滿額活動。':data.cards.length?'設定回饋上限或消費門檻，開始追蹤進度。':'新增卡片後，就能建立活動並記錄消費。'}</p><button className="primary" disabled={!ready||saving} onClick={()=>hasLookupOffers?setView('search'):openEditor({type:data.cards.length?'campaign':'card',cardId:selectedCard})}><Plus size={18}/>{hasLookupOffers?'查詢優惠':data.cards.length?'新增活動':'新增卡片'}</button></div>:<div className="campaign-grouped-overview"><p className="overview-grouping-note">同卡分組 · 未完成優先，進度由高到低</p><div className="campaign-groups">{groupedCampaigns.map(group=>{const lead=group.rows[0],near=lead.p.active&&lead.p.remaining>0&&lead.p.percent>=80;return <section className="campaign-group" aria-labelledby={`campaign-group-${group.card.id}`} key={group.card.id}><div className="campaign-group-heading"><CardArtwork card={group.card} compact/><h3 id={`campaign-group-${group.card.id}`}>{group.card.name}</h3><span>{group.rows.length} 個活動</span>{near&&<span className="group-priority">{lead.c.kind==='reward'?'接近上限':'接近達標'}</span>}</div><div className="campaign-grid">{group.rows.map(({c,card,p})=><CampaignProgress key={c.id} campaign={c} card={card} value={p} viewDate={on} saving={saving} onEdit={()=>openEditor({type:'campaign',value:c})} onDelete={()=>void remove('campaign',c.id)} onEntry={()=>openEditor({type:'entry',value:{id:'',cardId:card.id,date:today(),amount:0,note:'',campaignIds:[],reward:null}})}/>)}</div></section>;})}</div></div>}<p className="footnote">查看日期決定計算週期，累積包含整個週期內已記錄的消費。可刷額依剩餘回饋換算；帳單週期含結帳日，隔天開始新週期。</p></>}
- {!loading&&view==='cards'&&<CardsView cards={data.cards} campaigns={data.campaigns} saving={saving} ready={ready} onEdit={openEditor} onDelete={id=>void remove('card',id)}/>}
- {!loading&&view==='search'&&<ChannelSearch data={data} busy={saving} onEdit={c=>openEditor({type:'campaign',value:c})} onAdd={cardId=>openEditor({type:'campaign',cardId})} onEntry={card=>openEditor({type:'entry',value:{id:'',cardId:card.id,date:today(),amount:0,note:'',campaignIds:[],reward:null}})}/>}
- {!loading&&view==='entries'&&<EntriesView data={data} selected={selected} saving={saving} onSelect={setSelected} onEdit={openEditor} onDelete={id=>void remove('entry',id)}/>}
- </>}
- </div></main>{(saving||notice)&&<div className="save-toast" role="status">{saving?<RefreshCw size={16} className="spin"/>:<Check size={16}/>} {saving?'正在同步消費與活動…':notice}</div>}{modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} busy={saving} syncing={false} error={error} conflict={conflict} onSync={load} onClose={()=>{if(!saving){setModal(null);setError('');}}} onSubmit={submit} onDelete={modal.type==='campaign'&&modal.value?.id&&!modal.isNew?deleteEditedCampaign:undefined}/>}</div>;
+
+ const [title,subtitle]=titles[tab];
+ const syncState=saving?'儲存中':loading?'讀取中':syncing?(cached?'更新中':'同步中'):error?'未同步':updated?new Date(updated).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):'已連線';
+
+ return <>
+  <div className="ambient" aria-hidden="true"/>
+  <div className="app">
+   <header className={`navbar${scrolled?' scrolled':''}`}>
+    <img src="/brand-icon-graphite-v2.png" alt="CARDI" width={30} height={30} style={{borderRadius:9}}/>
+    <span className="mini-title" aria-hidden="true">{title}</span>
+    <button className={`sync${saving||loading||syncing?' busy':error?' bad':''}`} disabled={saving||loading||syncing} onClick={()=>void load()} aria-label={`雲端同步：${syncState}，點一下重新整理`}><i/>{syncState}</button>
+   </header>
+   <div className="large-title"><h1>{title}</h1><p>{subtitle}</p></div>
+   {error&&!modal&&tab!=='rates'&&<div className="banner" role="alert"><AlertCircle size={18} style={{marginTop:1}}/><div>{error}<button onClick={()=>void load()}>重新讀取</button></div></div>}
+   <main>
+    {tab==='limits'&&<LimitsView data={data} on={on} today={now} loading={loading} onShift={shift} onToday={()=>setOn(now)} onOpen={row=>setDetail({kind:'campaign',row})} onCard={card=>setDetail({kind:'card',card})} onEntry={openEntry} onAddCampaign={()=>edit({type:'campaign'})} onAddCard={()=>edit({type:'card'})} onAllEntries={()=>{setWalletTab('entries');go('wallet');}}/>}
+    {tab==='offers'&&<OffersView data={data} today={now} onOpen={(offer,query)=>setDetail({kind:'offer',offer,query:query||''})} onAddCampaign={()=>edit({type:'campaign'})}/>}
+    {tab==='rates'&&<RatesView/>}
+    {tab==='wallet'&&<WalletView data={data} today={now} tab={walletTab} onTab={setWalletTab} onCard={card=>setDetail({kind:'card',card})} onAddCard={()=>edit({type:'card'})} onEntry={openEntry}/>}
+   </main>
+  </div>
+
+  <nav className="dock" aria-label="主要功能">
+   <div className="tabs">{tabs.map(([key,label,Icon])=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>go(key)}><Icon size={22} strokeWidth={tab===key?2.2:1.8}/>{label}</button>)}</div>
+   <button className="fab" aria-label="記一筆消費" disabled={!ready} onClick={()=>addEntry()}><Plus size={28} strokeWidth={2.6}/></button>
+  </nav>
+
+  {detail&&<Sheet title={detail.kind==='campaign'?'活動進度':detail.kind==='offer'?'優惠':'卡片'} onClose={()=>setDetail(null)}>
+   {detail.kind==='campaign'&&<CampaignDetail row={detail.row} data={data} onEntry={()=>addEntry(detail.row.card.id)} onEdit={()=>edit({type:'campaign',value:detail.row.c})} onEditEntry={e=>edit({type:'entry',value:e})}/>}
+   {detail.kind==='offer'&&<OfferDetail offer={detail.offer} query={detail.query} onEntry={()=>addEntry(detail.offer.card.id)} onEdit={()=>edit({type:'campaign',value:detail.offer.c})}/>}
+   {detail.kind==='card'&&<CardDetail card={data.cards.find(c=>c.id===detail.card.id)||detail.card} data={data} today={now} onEntry={()=>addEntry(detail.card.id)} onEdit={()=>edit({type:'card',value:detail.card})} onAddCampaign={()=>edit({type:'campaign',cardId:detail.card.id})} onEditCampaign={c=>edit({type:'campaign',value:c})} onEditEntry={e=>edit({type:'entry',value:e})}/>}
+  </Sheet>}
+  {modal&&<Editor modal={modal} cards={data.cards} campaigns={data.campaigns} busy={saving} error={error} conflict={conflict} onSync={load}
+   onClose={()=>{if(!saving){setModal(null);setError('');}}} onSubmit={submit}
+   onDelete={modal.value?.id&&!modal.isNew?async()=>{if(await remove(modal.type,modal.value!.id))setModal(null);}:undefined}/>}
+  {(saving||notice)&&<div className="toast" role="status">{saving?<RefreshCw size={15} className="spin"/>:<Check size={15} strokeWidth={3}/>}{saving?'正在同步…':notice}</div>}
+ </>;
 }
