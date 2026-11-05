@@ -8,7 +8,7 @@ const prior=require.extensions['.ts'];
 require.extensions['.ts']=(module,path)=>module._compile(compile(path),path);
 const {tracksProgress,progress}=require('../lib/ledger.ts');
 const {validSnapshot,readLedgerCache,writeLedgerCache}=require('../lib/ledger-cache.ts');
-const {searchChannels}=require('../lib/channels.ts');
+const {advise}=require('../lib/advise.ts');
 const route={exports:{}};
 vm.runInNewContext(compile('app/api/ledger/route.ts')+'\nmodule.exports.inputSchema=schema;',{
  module:route,exports:route.exports,require:path=>{
@@ -48,7 +48,7 @@ test('cache roundtrip retains the flag and older snapshots remain compatible',()
 });
 test('conditional offers stay searchable while not entering progress tracking',()=>{
  const offer={...base,queryOnly:true};const data={cards:[card],campaigns:[offer],entries:[entry]};
- const found=searchChannels(data,'測試通路','2026-10-26');assert.equal(found.length,1);assert.equal(found[0].matches[0].c.queryOnly,true);
+ const found=advise(data,'測試通路',null,'2026-10-26');assert.equal(found.length,1);assert.equal(found[0].extras[0].queryOnly,true);assert.equal(found[0].rate,0);
  assert.equal(data.campaigns.filter(tracksProgress).length,0);
- assert.equal(searchChannels(data,'測試通路','2027-01-01').length,0);
+ assert.equal(advise(data,'測試通路',null,'2027-01-01').length,0);
 });

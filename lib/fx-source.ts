@@ -1,6 +1,6 @@
 import {emptyFx,fxDateAge,type FxCurrency,type FxNetwork,type FxSnapshot} from './fx';
 
-const bounds:Record<FxCurrency,[number,number]>={JPY:[.001,10],USD:[1,1000],VND:[.000001,1],THB:[.001,100],EUR:[1,2000]};
+const bounds:Record<FxCurrency,[number,number]>={JPY:[.001,10],KRW:[.001,1],USD:[1,1000],VND:[.000001,1],THB:[.001,100],EUR:[1,2000],HKD:[.1,100],SGD:[1,500],GBP:[1,2000],CNY:[.1,100],AUD:[1,500]};
 function text(html:string){return html.replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|#160);/gi,' ').replace(/\s+/g,' ').trim();}
 // Only extract numbers from the comparison table. Remote HTML is never rendered or executed.
 export function parseFxPage(html:string,currency:FxCurrency,now:Date=new Date()):FxSnapshot {

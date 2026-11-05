@@ -1,5 +1,5 @@
 import type {Registration} from './registration';
-export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number;lookupOnly?:boolean};
+export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number;lookupOnly?:boolean;catalogId?:string};
 export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|'unlimited';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;rateLabel?:string;queryOnly?:boolean;start:string;end:string;notes:string;channels?:string[];registration?:Registration};
 export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
 export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
@@ -8,6 +8,8 @@ export function removeCampaign(data:Ledger,id:string):Ledger{
  return {...data,campaigns:data.campaigns.filter(c=>c.id!==id),entries:data.entries.map(entry=>entry.campaignIds.includes(id)?{...entry,campaignIds:entry.campaignIds.filter(value=>value!==id)}:entry)};
 }
 export function tracksProgress(c:Campaign){return c.kind!=='unlimited'&&!c.queryOnly;}
+export function addDays(day:string,n:number){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+export function daysBetween(from:string,to:string){return Math.round((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);}
 export function today(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());}
 function calendar(y:number,m:number,d:number){
  const value=new Date(0);
@@ -36,7 +38,7 @@ export function range(c:Campaign,card:Card,on:string){
 }
 export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
  const r=range(c,card,on);
- if(!tracksProgress(c))return {...r,spend:0,value:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
+ if(!tracksProgress(c))return {...r,spend:0,value:0,earned:0,over:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
  const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
  // Sum money as cents so decimal purchases cannot leave a phantom cent at the target.
  const spendCents=rows.reduce((sum,e)=>sum+cents(e.amount),0);
@@ -47,5 +49,8 @@ export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
  // Actual rewards consume the cap even when they differ from the configured rate.
  const spendLimit=canConvert?(c.kind==='spend'?targetCents/100:floorMoney(targetCents/c.rate)):null;
  const spendRemaining=canConvert?(c.kind==='spend'?remaining:floorMoney(remainingCents/c.rate)):null;
- return {...r,spend,value,percent:Math.min(100,Math.max(0,targetCents>0?valueCents/targetCents*100:0)),remaining,spendLimit,spendRemaining};
+ // Spending past the cap earned nothing, so it never counts as money received.
+ const earned=Math.min(valueCents,targetCents)/100;
+ const over=c.kind==='reward'&&c.rate>0&&valueCents>targetCents?floorMoney((valueCents-targetCents)/c.rate):0;
+ return {...r,spend,value,earned,over,percent:Math.min(100,Math.max(0,targetCents>0?valueCents/targetCents*100:0)),remaining,spendLimit,spendRemaining};
 }

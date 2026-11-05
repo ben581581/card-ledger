@@ -1,2 +1,2 @@
-import type {Card,Campaign,Entry} from '../lib/ledger';
-export type Modal={type:'card'|'campaign'|'entry';value?:Card|Campaign|Entry;cardId?:string;isNew?:boolean};
+import type {Card,Campaign} from '../lib/ledger';
+export type Modal={type:'card'|'campaign';value?:Card|Campaign;cardId?:string;isNew?:boolean};

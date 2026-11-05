@@ -1,99 +1,127 @@
 'use client';
 import {useDeferredValue,useMemo,useState} from 'react';
-import {Search,X,Sparkles,ChevronDown,ChevronRight,Tag} from 'lucide-react';
-import {type Card,type Ledger,progress,tracksProgress} from '../../lib/ledger';
+import {CalendarCheck,CalendarClock,ChevronDown,ChevronRight,Search,Sparkles,Tag,X} from 'lucide-react';
+import {type Campaign,type Card,type Ledger,addDays,range} from '../../lib/ledger';
 import {featuredChannels,normalizeChannel} from '../../lib/channels';
-import {type Offer,offerActive,rankOffers,rateText} from '../../lib/insights';
+import {type Advice,advise} from '../../lib/advise';
+import {type Catalog,betterAtMerchant} from '../../lib/catalog';
+import {offerActive} from '../../lib/insights';
 import {indexEntriesByCampaign} from '../../lib/entry-index';
-import {CardArtwork} from '../card-artwork';
-import {whole} from '../format';
+import {CardArt,CatalogFace} from '../ui/card-art';
+import {Meter} from '../ui/meter';
+import {money,rate as rateNumber,shortDate,shortRate,whole} from '../format';
 
-type Props={data:Ledger;today:string;onOpen:(offer:Offer,query?:string)=>void;onAddCampaign:()=>void};
+type Props={data:Ledger;today:string;catalog:Catalog|null;onOffer:(campaignId:string,query:string)=>void;onCard:(id:string)=>void;onCatalog:(id:string)=>void;onRecord:(cardId:string,note:string,amount:number|null)=>void;onAddCampaign:()=>void};
 
-export function capacityText(o:Offer){
- if(!o.p.active)return '非活動期間';
- if(!o.tracked)return o.c.kind==='unlimited'&&!o.c.queryOnly&&!o.card.lookupOnly?'回饋無上限':'僅查詢 · 依官方條件';
- if(o.c.kind==='spend')return o.p.remaining===0?'已達標':`滿額還差 NT$ ${whole(o.p.spendRemaining??0)}`;
- if(o.p.remaining===0)return '本期已用滿';
- return o.p.spendRemaining===null?'未設定回饋率':`還能刷 NT$ ${whole(o.p.spendRemaining)}`;
+function adviceLine(a:Advice){
+ const lead=a.parts.find(p=>!p.full)||a.parts[0];
+ const name=lead?lead.c.name:a.extras[0]?.name||'';
+ if(!a.parts.length)return `${name} · 需符合條件`;
+ if(a.parts.every(p=>p.full))return `${name} · 本期已用滿`;
+ return a.room!==null?`${name} · 還能刷 ${whole(a.room)}`:name;
 }
+const rateLabel=(a:Advice)=>a.label&&!a.parts.some(p=>p.full)&&a.parts.length===1?a.label:`${rateNumber(a.rate)}%`;
 
-export function OffersView({data,today,onOpen,onAddCampaign}:Props){
- const [query,setQuery]=useState(''),[inactive,setInactive]=useState(false);
+export function OffersView({data,today,catalog,onOffer,onCard,onCatalog,onRecord,onAddCampaign}:Props){
+ const [query,setQuery]=useState(''),[amountText,setAmountText]=useState('');
  const deferred=useDeferredValue(query.trim());
+ const amount=Number(amountText.replaceAll(',',''))>0?Number(amountText.replaceAll(',','')):null;
  const index=useMemo(()=>indexEntriesByCampaign(data.entries),[data.entries]);
  const featured=useMemo(()=>featuredChannels(data,today),[data,today]);
- const results=useMemo(()=>deferred?rankOffers(data,deferred,today,inactive,index):[],[data,deferred,today,inactive,index]);
- const hasChannels=data.campaigns.some(c=>c.channels?.length);
+ const results=useMemo(()=>deferred?advise(data,deferred,amount,today,index):[],[data,deferred,amount,today,index]);
+ const better=useMemo(()=>catalog?betterAtMerchant(catalog.cards,data.cards,deferred,results[0]?.rate??0,today):[],[catalog,data.cards,deferred,results,today]);
  const [best,...rest]=results;
+ const dead=!!best&&best.rate<=0;
 
- return <div className="fade-in">
-  <div className="search">
-   <div className="search-field"><Search size={18}/>
-    <input type="search" enterKeyHint="search" aria-label="搜尋通路" placeholder="通路名稱，例如：蝦皮、全聯" value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/>
-    {query&&<button aria-label="清除" onClick={()=>setQuery('')}><X size={13} strokeWidth={3}/></button>}
-   </div>
+ return <div className="view">
+  <div className="search"><Search size={18}/>
+   <input type="search" enterKeyHint="search" aria-label="搜尋通路" placeholder="在哪裡刷？" value={query} maxLength={80} onChange={e=>setQuery(e.target.value)}/>
+   {query&&<button className="clear" aria-label="清除" onClick={()=>setQuery('')}><X size={12} strokeWidth={3}/></button>}
+   <label className="search-amount">NT$<input inputMode="numeric" aria-label="消費金額（選填）" placeholder="金額" value={amountText} onChange={e=>setAmountText(e.target.value.replace(/[^\d.]/g,''))}/></label>
   </div>
   {!!featured.length&&<div className="chips" role="group" aria-label="熱門通路">{featured.map(({channel,cardCount})=>{const on=normalizeChannel(query)===normalizeChannel(channel);return <button key={channel} className="chip" aria-pressed={on} onClick={()=>setQuery(on?'':channel)}>{channel}<em>{cardCount} 張</em></button>;})}</div>}
 
   {deferred?<>
-   <div className="section-head" style={{marginTop:18}}><h2>{results.length?'該刷哪張':'沒有符合的優惠'}</h2><button onClick={()=>setInactive(v=>!v)} style={{color:inactive?'var(--accent)':undefined}}>{inactive?'✓ ':''}含非期間</button></div>
-   {best&&<button className="best press" onClick={()=>onOpen(best,deferred)}>
-    <span className="best-label"><Sparkles size={13}/>{best.usable?'最佳選擇':'目前皆無可用額度'}</span>
-    <div className="best-main"><CardArtwork card={best.card}/><div style={{minWidth:0}}><h3>{best.card.name}</h3><p>{best.c.name}</p></div></div>
-    <div className="best-rate num">{rateText(best.c)}</div>
-    <div className="best-foot"><span>{capacityText(best)}</span>{best.c.registration?.type==='required'&&<span className="mini-reg">{best.c.registration.label}</span>}</div>
-   </button>}
-   {rest.length>0&&<div className="group" style={{marginTop:12}}>{rest.map(o=><OfferCell key={o.c.id} offer={o} onOpen={()=>onOpen(o,deferred)}/>)}</div>}
-   {!results.length&&<p className="caption">{hasChannels?'換個通路名稱試試，或開啟「含非期間」。':'先在卡片的優惠活動中填入適用通路，例如蝦皮、momo。'}</p>}
-   {results.length>1&&<p className="caption">依「當期有效 → 仍有額度 → 回饋率」排序。各活動回饋率分別顯示，不會自動相加。</p>}
-  </>:<Browse data={data} today={today} onOpen={onOpen} onAdd={onAddCampaign} index={index}/>}
+   {best?<button className={`best${dead?' dead':''}`} onClick={()=>{const c=best.parts[0]?.c||best.extras[0];if(c)onOffer(c.id,deferred);}}>
+    <span className="best-label">{dead?'額度都用完了':'刷這張最划算'}</span>
+    <div className="best-main">
+     <CardArt card={best.card}/>
+     <div style={{minWidth:0}}><h3>{best.card.name}</h3><p>{best.card.bank||'信用卡'}</p></div>
+     <div className="best-rate num">{rateLabel(best).replace('%','')}{!rateLabel(best).includes('–')&&!rateLabel(best).includes('～')&&<small>%</small>}</div>
+    </div>
+    <div className="best-foot"><span>{adviceLine(best)}</span>{best.gain!==null&&best.gain>0&&<span className="gain">· 預估回饋 NT$ {money(best.gain)}</span>}</div>
+   </button>:<p className="caption" style={{marginTop:16}}>手上的卡在這裡沒有符合的優惠，也沒有一般回饋活動。{data.campaigns.some(c=>c.channels?.length)?'換個通路名稱試試。':'先在卡片的優惠活動中填入適用通路。'}</p>}
+   {best&&!best.card.lookupOnly&&<button className="pill" style={{marginTop:10}} onClick={()=>onRecord(best.card.id,deferred,amount)}>用這張記一筆</button>}
+
+   {rest.length>0&&<>
+    <div className="section-head"><h2>其他卡片</h2><span className="num">{rest.length}</span></div>
+    <div className="group">{rest.map(a=><AdviceCell key={a.card.id} advice={a} onOpen={()=>{const c=a.parts[0]?.c||a.extras[0];if(c)onOffer(c.id,deferred);}}/>)}</div>
+   </>}
+   {results.length>1&&<p className="caption">依「這筆實際能拿到的回饋」排序：同卡加碼會相加，切換型方案取最高，已用滿的上限不計。有條件的優惠不列入，以銀行公告為準。</p>}
+
+   {better.length>0&&<>
+    <div className="section-head"><h2>還沒有的卡，這裡更高</h2></div>
+    <div className="group">{better.map(({entry,rate})=><button key={entry.id} className="card-tile" onClick={()=>onCatalog(entry.id)}>
+     <CatalogFace entry={entry}/>
+     <div className="card-tile-main"><h3><span>{entry.name}</span></h3><p>{entry.bank} · 年費 {entry.fee?`NT$ ${whole(entry.fee)}`:'免'}</p></div>
+     <span className="rate num">{rateNumber(rate)}%</span>
+    </button>)}</div>
+   </>}
+  </>:<Browse data={data} today={today} onOffer={onOffer} onCard={onCard} onAdd={onAddCampaign}/>}
  </div>;
 }
 
-function OfferCell({offer:o,onOpen}:{offer:Offer;onOpen:()=>void}){
- return <button className="cell" style={{'--inset':'72px',opacity:o.usable?1:.55} as React.CSSProperties} onClick={onOpen}>
-  <CardArtwork card={o.card} compact/>
-  <div className="cell-main"><div className="cell-title">{o.card.name}</div><div className="cell-sub">{o.c.name} · {capacityText(o)}</div></div>
-  <span className={`rate-pill num${o.usable?'':' dim'}`}>{rateText(o.c)}</span>
+function AdviceCell({advice:a,onOpen}:{advice:Advice;onOpen:()=>void}){
+ const spent=a.parts.length>0&&a.parts.every(p=>p.full);
+ const tight=a.parts.find(p=>p.room!==null&&p.specific);
+ return <button className="cell" style={{opacity:spent?.55:1}} onClick={onOpen}>
+  <CardArt card={a.card} compact/>
+  <div className="cell-main"><span className="cell-title">{a.card.name}</span><span className="cell-sub clip">{adviceLine(a)}</span>
+   {tight&&!spent&&tight.c.target>0&&<div className="preview mini-meter"><Meter value={100-(tight.room!*tight.rate/100)/tight.c.target*100}/></div>}</div>
+  <div className="cell-end">{rateLabel(a)}{a.gain!==null&&<small>NT$ {money(a.gain)}</small>}</div>
  </button>;
 }
 
-function Browse({data,today,onOpen,onAdd,index}:{data:Ledger;today:string;onOpen:(o:Offer)=>void;onAdd:()=>void;index:ReturnType<typeof indexEntriesByCampaign>}){
- const [open,setOpen]=useState<string|null>(null);
+function Browse({data,today,onOffer,onCard,onAdd}:{data:Ledger;today:string;onOffer:(id:string,query:string)=>void;onCard:(id:string)=>void;onAdd:()=>void}){
+ const [allTasks,setAllTasks]=useState(false);
+ const cards=useMemo(()=>new Map(data.cards.map(c=>[c.id,c])),[data.cards]);
+ const live=useMemo(()=>data.campaigns.filter(c=>{const card=cards.get(c.cardId);return !!card&&range(c,card,today).active;}),[data.campaigns,cards,today]);
+ const ending=useMemo(()=>{
+  const limit=addDays(today,30);
+  return live.filter(c=>c.end&&c.end<=limit).sort((a,b)=>a.end.localeCompare(b.end));
+ },[live,today]);
+ const tasks=useMemo(()=>live.filter(c=>c.registration?.type==='required'&&!c.queryOnly),[live]);
  const grouped=useMemo(()=>data.cards.map(card=>({card,offers:data.campaigns.filter(c=>c.cardId===card.id)})).filter(g=>g.offers.length),[data]);
- if(!grouped.length)return <div className="empty" style={{marginTop:20}}><div className="empty-icon"><Tag size={26}/></div><h3>還沒有優惠資料</h3><p>為卡片新增優惠活動並填入通路，就能用通路名稱一次比較所有卡。</p><button className="btn btn-primary" onClick={onAdd}>新增優惠</button></div>;
+ if(!grouped.length)return <div className="empty" style={{marginTop:20}}><div className="empty-icon"><Tag size={24}/></div><h3>還沒有優惠資料</h3><p>為卡片新增優惠活動並填入通路，就能用通路名稱一次比較所有卡。</p><button className="btn btn-primary" onClick={onAdd}>新增優惠</button></div>;
+ const shownTasks=allTasks?tasks:tasks.slice(0,3);
  return <>
-  <div className="section-head" style={{marginTop:22}}><h2>我的卡片優惠</h2><span>{data.campaigns.length} 項</span></div>
+  {tasks.length>0&&<>
+   <div className="section-head"><h2 className="tone near">需要登錄才有回饋</h2><span className="num">{tasks.length}</span></div>
+   <div className="group">{shownTasks.map(c=><Line key={c.id} c={c} card={cards.get(c.cardId)!} icon={<CalendarCheck size={18} style={{color:'var(--near)'}}/>} sub={c.registration?.label||''} onOpen={()=>onOffer(c.id,'')}/>)}</div>
+   {tasks.length>3&&<button className="disclosure" aria-expanded={allTasks} onClick={()=>setAllTasks(v=>!v)}>{allTasks?'收起':`全部 ${tasks.length} 項`}<ChevronDown size={15}/></button>}
+  </>}
+  {ending.length>0&&<>
+   <div className="section-head"><h2>30 天內到期</h2><span className="num">{ending.length}</span></div>
+   <div className="group">{ending.slice(0,5).map(c=><Line key={c.id} c={c} card={cards.get(c.cardId)!} icon={<CalendarClock size={18} style={{color:'var(--t2)'}}/>} sub={`${shortDate(c.end)} 結束`} onOpen={()=>onOffer(c.id,'')}/>)}</div>
+  </>}
+  <div className="section-head"><h2>我的卡片</h2><span className="num">{data.cards.length} 張</span></div>
   <div className="group">{grouped.map(({card,offers})=>{
-   const expanded=open===card.id;
-   const live=offers.filter(c=>offerActive(c,card,today));
-   const top=Math.max(0,...live.filter(c=>c.kind!=='spend').map(c=>c.rate));
-   return <div key={card.id}>
-    <button className="cell" style={{'--inset':'72px'} as React.CSSProperties} aria-expanded={expanded} onClick={()=>setOpen(expanded?null:card.id)}>
-     <CardArtwork card={card} compact/>
-     <div className="cell-main"><div className="cell-title">{card.name}</div><div className="cell-sub">{live.length} 項當期優惠{top>0&&` · 最高 ${top}%`}</div></div>
-     <ChevronDown size={17} className="chev" style={{transform:expanded?'rotate(180deg)':undefined,transition:'transform .3s'}}/>
-    </button>
-    {expanded&&<div style={{background:'var(--bg-1)'}}>{offers.map(c=><OfferLine key={c.id} card={card} c={c} today={today} onOpen={()=>onOpen(toOffer(card,c,today,index))}/>)}</div>}
-   </div>;
+   const active=offers.filter(c=>offerActive(c,card,today));
+   const top=Math.max(0,...active.filter(c=>c.kind!=='spend').map(c=>c.rate));
+   return <button key={card.id} className="cell" onClick={()=>onCard(card.id)}>
+    <CardArt card={card} compact/>
+    <div className="cell-main"><span className="cell-title">{card.name}</span><span className="cell-sub">{active.length} 項當期優惠{top>0&&` · 最高 ${top}%`}</span></div>
+    <ChevronRight size={16} className="chev"/>
+   </button>;
   })}</div>
-  <p className="caption">輸入通路名稱，會依額度與回饋率幫你挑出最適合的卡。</p>
+  <p className="caption" style={{display:'flex',gap:6}}><Sparkles size={13} style={{marginTop:2}}/>輸入通路會直接比較所有卡；加上金額，會算出這筆實際能拿多少。</p>
  </>;
 }
 
-function OfferLine({card,c,today,onOpen}:{card:Card;c:Ledger['campaigns'][number];today:string;onOpen:()=>void}){
- const active=offerActive(c,card,today);
- return <button className="cell" style={{paddingLeft:28,opacity:active?1:.5}} onClick={onOpen}>
-  <div className="cell-main"><div className="cell-title" style={{fontSize:15}}>{c.name}</div><div className="cell-sub">{c.channels?.slice(0,4).join('、')||'未填通路'}{(c.channels?.length||0)>4&&` 等 ${c.channels!.length} 個`}</div></div>
-  <span className={`rate-pill num${active?'':' dim'}`}>{rateText(c)}</span>
-  <ChevronRight size={16} className="chev"/>
+function Line({c,card,icon,sub,onOpen}:{c:Campaign;card:Card;icon:React.ReactNode;sub:string;onOpen:()=>void}){
+ return <button className="cell" onClick={onOpen}>
+  {icon}
+  <div className="cell-main"><span className="cell-title">{c.name}</span><span className="cell-sub clip">{card.name} · {sub}</span></div>
+  <span className={`rate num${c.kind==='spend'?' dim':''}`}>{shortRate(c)}</span>
  </button>;
-}
-
-// Browsing reuses the same detail sheet as search results.
-function toOffer(card:Card,c:Ledger['campaigns'][number],on:string,index:ReturnType<typeof indexEntriesByCampaign>):Offer{
- const p=progress(c,card,index.get(c.id)||[],on);
- const tracked=!card.lookupOnly&&tracksProgress(c);
- return {c,card,p,tracked,usable:p.active&&(!tracked||c.kind==='spend'||p.remaining>0)};
 }

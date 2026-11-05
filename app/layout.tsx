@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CARDI｜信用卡回饋與消費追蹤",
-  description: "掌握信用卡回饋上限、帳單週期與消費滿額目標。",
+  title: "CARDI｜額度、回饋與卡片",
+  description: "一眼看到每張卡還能刷多少、有沒有滿額，再挑這筆該刷哪張。",
   icons: {
     icon: [
       {url:"/favicon-16-graphite-v2.png",sizes:"16x16",type:"image/png"},

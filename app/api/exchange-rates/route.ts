@@ -24,7 +24,7 @@ export async function GET(request:Request){
   const params=new URL(request.url).searchParams;
   const currency=params.get('currency')??'JPY';
   if(!isFxCurrency(currency)||[...params.keys()].some(key=>key!=='currency')||params.getAll('currency').length>1){
-    return Response.json({error:'請選擇 JPY、USD、VND、THB 或 EUR。'},{status:400,headers:{'Cache-Control':'no-store'}});
+    return Response.json({error:'請選擇支援的幣別。'},{status:400,headers:{'Cache-Control':'no-store'}});
   }
   try{
     const snapshot=await getRates(currency);

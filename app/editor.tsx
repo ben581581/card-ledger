@@ -1,95 +1,38 @@
 'use client';
-import {useMemo,useState,type FormEvent} from 'react';
-import {Check,Trash2,ChevronDown} from 'lucide-react';
-import {type Card,type Campaign,type Entry,today,range,tracksProgress} from '../lib/ledger';
+import {useState,type FormEvent} from 'react';
+import {Trash2} from 'lucide-react';
+import type {Card,Campaign} from '../lib/ledger';
 import {cardImages,cardImageZoom,matchedCardImage} from '../lib/card-images';
 import {uploadedImagePath} from '../lib/uploaded-images';
-import {CardArtwork} from './card-artwork';
+import {CardArt} from './ui/card-art';
 import {ImageUpload} from './image-upload';
 import {OfficialImage} from './official-image';
 import {RegistrationFields} from './registration-notice';
-import {Sheet} from './sheet';
+import {Sheet} from './ui/sheet';
 import type {Modal} from './editor-types';
 import {periodNames} from './format';
 
 const colors=[['#2563eb','藍'],['#7c3aed','紫'],['#0e7490','青'],['#be185d','桃紅'],['#b45309','琥珀'],['#334155','石墨']];
-type Props={modal:Modal;cards:Card[];campaigns:Campaign[];notes?:string[];busy:boolean;error:string;conflict:boolean;onSync:()=>Promise<void>;onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;onDelete?:()=>void};
+type Props={modal:Modal;cards:Card[];campaigns:Campaign[];busy:boolean;error:string;conflict:boolean;onSync:()=>Promise<void>;onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void;onDelete?:()=>void};
 
 export default function Editor(props:Props){
  const {modal,busy,error,conflict,onSync,onClose,onSubmit,onDelete}=props;
  const [uploading,setUploading]=useState(false);
  const editing=!!modal.value?.id&&!modal.isNew;
- const noun=modal.type==='card'?'卡片':modal.type==='campaign'?'活動':'消費';
- const title=modal.type==='entry'&&!editing?'記一筆':`${editing?'編輯':'新增'}${noun}`;
+ const noun=modal.type==='card'?'卡片':'活動';
+ const title=`${editing?'編輯':'新增'}${noun}`;
  const locked=busy||uploading;
  return <Sheet title={title} full locked={locked} onClose={onClose}
   left={<button type="button" className="text" disabled={locked} onClick={onClose}>取消</button>}
   right={<button type="submit" form="editor-form" className="text strong" disabled={locked}>{uploading?'處理中':busy?'儲存中':'儲存'}</button>}>
   <form id="editor-form" onSubmit={e=>{if(uploading){e.preventDefault();return;}onSubmit(e);}}>
    <fieldset disabled={locked} style={{border:0,margin:0,padding:0,minWidth:0}}>
-    {modal.type==='entry'?<EntryForm {...props}/>:modal.type==='campaign'?<CampaignForm {...props}/>:<CardForm {...props} onBusy={setUploading}/>}
+    {modal.type==='campaign'?<CampaignForm {...props}/>:<CardForm {...props} onBusy={setUploading}/>}
    </fieldset>
    {error&&<div role="alert" className="inline-error">{error}{conflict&&<button type="button" disabled={busy} onClick={()=>void onSync()}>同步最新帳簿（表單會保留）</button>}</div>}
    {editing&&onDelete&&<button type="button" className="btn btn-danger btn-block" style={{marginTop:28}} disabled={locked} onClick={onDelete}><Trash2 size={17}/>刪除{noun}</button>}
   </form>
  </Sheet>;
-}
-
-/* ── 記一筆 ─────────────────────────────────────────────── */
-function EntryForm({modal,cards,campaigns,notes=[]}:Props){
- const [note,setNote]=useState(modal.value&&'note'in modal.value?modal.value.note:'');
- const e=modal.value as Entry|undefined,isNew=!e?.id;
- const choices=cards.filter(c=>!c.lookupOnly||c.id===e?.cardId);
- const [cardId,setCardId]=useState(modal.cardId||e?.cardId||choices[0]?.id||'');
- const [date,setDate]=useState(e?.date||today());
- const card=cards.find(c=>c.id===cardId);
- const own=useMemo(()=>campaigns.filter(c=>c.cardId===cardId),[campaigns,cardId]);
- const trackable=own.filter(c=>tracksProgress(c));
- const activeOn=(c:Campaign,d:string)=>!!card&&!!d&&range(c,card,d).active;
- // New entries follow the date until the user picks activities by hand.
- const [picked,setPicked]=useState<string[]|null>(isNew?null:e!.campaignIds);
- const chosen=picked?picked.filter(id=>trackable.some(c=>c.id===id)):trackable.filter(c=>activeOn(c,date)).map(c=>c.id);
- const kept=isNew?[]:e!.campaignIds.filter(id=>own.some(c=>c.id===id&&!tracksProgress(c)));
- const live=trackable.filter(c=>activeOn(c,date)),off=trackable.filter(c=>!activeOn(c,date));
- const [showOff,setShowOff]=useState(false),[advanced,setAdvanced]=useState(e?.reward!=null);
- const [amountText,setAmountText]=useState(e?.amount?String(e.amount):'');
- const toggle=(id:string,on:boolean)=>setPicked(on?[...chosen,id]:chosen.filter(x=>x!==id));
- const rewards=trackable.filter(c=>c.kind==='reward'&&chosen.includes(c.id)).length;
- return <>
-  <div className="amount-pad">
-   <label htmlFor="amount">消費金額</label>
-   <div className="amount-input"><span>NT$</span><input id="amount" name="amount" className="num" type="number" inputMode="decimal" min="0.01" max="10000000000" step="0.01" required data-autofocus={isNew||undefined} placeholder="0" value={amountText} onChange={ev=>setAmountText(ev.target.value)} style={{width:`${Math.max(1,amountText.length)+.6}ch`}}/></div>
-  </div>
-  <div className="form-label">信用卡</div>
-  <div className="card-picker" role="radiogroup" aria-label="信用卡">
-   {choices.map(c=><label key={c.id}><input type="radio" name="cardId" value={c.id} checked={cardId===c.id} onChange={()=>{setCardId(c.id);if(isNew)setPicked(null);else setPicked([]);}}/><CardArtwork card={c}/><small>{c.name}</small></label>)}
-   {!cards.some(c=>c.id===cardId)&&<p className="inline-error">原卡片已刪除，請重新選擇。</p>}
-  </div>
-  <div className="form-group" style={{marginTop:10}}>
-   <label className="field"><span>日期</span><input name="date" type="date" required value={date} onChange={ev=>setDate(ev.target.value)}/></label>
-   <label className="field"><span>說明</span><input name="note" maxLength={500} value={note} onChange={ev=>setNote(ev.target.value)} placeholder="例如：全聯、蝦皮"/></label>
-  </div>
-  {notes.length>0&&<div className="chips" style={{marginTop:10}} role="group" aria-label="常用說明">{notes.map(n=><button type="button" key={n} className="chip" aria-pressed={note===n} onClick={()=>setNote(note===n?'':n)}>{n}</button>)}</div>}
-
-  <div className="form-label" style={{display:'flex',justifyContent:'space-between'}}><span>計入活動 · 已選 {chosen.length}</span>{trackable.length>0&&<button type="button" className="link" style={{fontSize:13}} onClick={()=>setPicked(chosen.length?[]:live.map(c=>c.id))}>{chosen.length?'全部取消':'選當期'}</button>}</div>
-  {trackable.length?<div className="form-group">
-   {live.map(c=><Activity key={c.id} c={c} checked={chosen.includes(c.id)} onChange={v=>toggle(c.id,v)}/>)}
-   {off.length>0&&<button type="button" className="disclosure" onClick={()=>setShowOff(v=>!v)}>{showOff?'收起':'顯示'}不在此日期的活動 {off.length}<ChevronDown size={14} style={{transform:showOff?'rotate(180deg)':undefined}}/></button>}
-   {showOff&&off.map(c=><Activity key={c.id} c={c} warn checked={chosen.includes(c.id)} onChange={v=>toggle(c.id,v)}/>)}
-  </div>:<p className="form-foot">這張卡沒有追蹤中的活動，仍可先儲存消費。</p>}
-  {chosen.map(id=><input key={id} type="hidden" name="campaignIds" value={id}/>)}
-  {kept.map(id=><input key={id} type="hidden" name="campaignIds" value={id}/>)}
-  <p className="form-foot">預設勾選該日期有效的活動；日期不在活動期間的消費不會計入。</p>
-
-  <button type="button" className="disclosure" style={{marginTop:14}} onClick={()=>setAdvanced(v=>!v)}>實際回饋（選填）<ChevronDown size={14} style={{transform:advanced?'rotate(180deg)':undefined}}/></button>
-  <div className="form-group" hidden={!advanced}><label className="field"><span>實際回饋</span><input name="reward" type="number" inputMode="decimal" min="0" max="10000000000" step="0.01" defaultValue={e?.reward??''} placeholder="依回饋率估算"/><span className="unit">NT$</span></label></div>
-  {advanced&&<p className="form-foot">{rewards>1?`同一金額會分別計入已勾選的 ${rewards} 個回饋活動；各活動回饋不同時請留空。`:'留空則依活動回饋率估算；滿額活動不使用此欄位。'}</p>}
- </>;
-}
-
-function Activity({c,checked,onChange,warn}:{c:Campaign;checked:boolean;onChange:(v:boolean)=>void;warn?:boolean}){
- return <label className="check-cell"><input type="checkbox" checked={checked} onChange={ev=>onChange(ev.target.checked)}/><span className="box"><Check size={15} strokeWidth={3}/></span>
-  <span className="cell-main"><span className="cell-title" style={{display:'block'}}>{c.name}</span><span className="cell-sub" style={{display:'block'}}>{c.kind==='reward'?`${c.rate}% 回饋 · 上限 ${c.target}`:`滿額 ${c.target}`} · {periodNames[c.period]}{warn&&<span className="warn"> · 不在活動期間</span>}</span></span></label>;
 }
 
 /* ── 活動 ───────────────────────────────────────────────── */
@@ -154,7 +97,7 @@ function CardForm({modal,busy,onBusy}:Props&{onBusy:(v:boolean)=>void}){
  const actualZoom=zoom??cardImageZoom(mode==='auto'?matched?.url||'':url);
  const previewUrl=mode==='auto'?undefined:mode==='none'||(mode==='upload'&&!uploadedImagePath.test(url))?'':url;
  return <>
-  <div style={{width:'72%',margin:'6px auto 4px'}}><CardArtwork key={`${mode}-${url}-${name}-${bank}`} card={{id:'preview',name:name||'我的信用卡',bank,color,closeDay:15,imageZoom:actualZoom,...(previewUrl===undefined?{}:{imageUrl:previewUrl})}}/></div>
+  <div style={{width:'72%',margin:'6px auto 4px'}}><CardArt key={`${mode}-${url}-${name}-${bank}`} card={{id:'preview',name:name||'我的信用卡',bank,color,closeDay:15,imageZoom:actualZoom,...(previewUrl===undefined?{}:{imageUrl:previewUrl})}}/></div>
   <div className="form-label">卡片資料</div>
   <div className="form-group">
    <label className="field"><span>名稱</span><input name="name" required maxLength={100} value={name} onChange={ev=>setName(ev.target.value)} placeholder="例如：永豐 SPORT 卡"/></label>

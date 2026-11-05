@@ -1,5 +1,5 @@
 'use client';
-import {useCallback,useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {empty,type Ledger} from '../lib/ledger';
 import {ledgerCacheKey,readLedgerCache,validSnapshot,writeLedgerCache,type LedgerSnapshot} from '../lib/ledger-cache';
 
@@ -31,7 +31,8 @@ export function useLedger(editing:boolean){
   }catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:'雲端暫時無法連線');}
   finally{if(request.current===controller){request.current=null;setSyncing(false);setLoading(false);}}
  },[accept]);
- useEffect(()=>{
+ // Layout effect: cached data is on screen for the first paint, with no loading flash.
+ useLayoutEffect(()=>{
   try{const value=readLedgerCache(localStorage);if(value){snapshot.current=value;setData(value.data);setUpdated(value.updatedAt||'');setReady(true);setCached(true);setLoading(false);}}catch{}
   void load();return()=>{request.current?.abort();request.current=null;};
  },[load]);

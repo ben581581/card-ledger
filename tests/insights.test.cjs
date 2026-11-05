@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const ts=require('typescript');
 const previous=require.extensions['.ts'];
 require.extensions['.ts']=(module,path)=>module._compile(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,path);
-const {trackedRows,summarize,daysLeft,rankOffers,statusOf}=require('../lib/insights.ts');
+const {trackedRows,summarize,daysLeft,statusOf}=require('../lib/insights.ts');
 require.extensions['.ts']=previous;
 
 const card={id:'a',name:'A',bank:'',closeDay:15,color:'#334155'};
@@ -37,15 +37,3 @@ test('a reward campaign without a rate cannot be converted and is flagged',()=>{
  assert.equal(statusOf({active:false,start:'2026-12-01',end:'2026-12-31'},on),'upcoming');
 });
 
-test('channel ranking prefers usable capacity, then the higher rate',()=>{
- const b={...card,id:'b',name:'B'};
- const data={cards:[card,b,lookup],campaigns:[
-  camp('a-full',{rate:10,channels:['蝦皮']}),
-  camp('b-open',{cardId:'b',rate:3,channels:['Shopee']}),
-  camp('l-free',{cardId:'l',kind:'unlimited',rate:4,channels:['蝦皮購物']}),
-  camp('a-goal',{kind:'spend',target:5000,rate:0,channels:['蝦皮']}),
- ],entries:[entry('1',1000,['a-full'])]};
- const ranked=rankOffers(data,'蝦皮',on);
- assert.deepEqual(ranked.map(o=>o.c.id),['l-free','b-open','a-goal','a-full']);
- assert.equal(ranked.at(-1).usable,false);
-});

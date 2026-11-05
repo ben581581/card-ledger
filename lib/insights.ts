@@ -1,5 +1,4 @@
-import {type Card,type Campaign,type Entry,type Ledger,progress,range,tracksProgress} from './ledger';
-import {searchChannels} from './channels';
+import {type Card,type Campaign,type Entry,type Ledger,addDays,daysBetween,progress,range,tracksProgress} from './ledger';
 import {indexEntriesByCampaign} from './entry-index';
 
 export type Progress=ReturnType<typeof progress>;
@@ -44,6 +43,7 @@ export function summarize(rows:Row[]){
  const rewards=live.filter(r=>r.c.kind==='reward'),goals=live.filter(r=>r.c.kind==='spend');
  // Cents avoid summing float noise across many campaigns.
  const sum=(list:Row[])=>list.reduce((s,r)=>s+Math.round((r.p.spendRemaining??0)*100),0)/100;
+ const sumCap=(pick:(r:Row)=>number)=>rewards.reduce((s,r)=>s+Math.round(pick(r)*100),0)/100;
  return {
   live:live.length,
   near:live.filter(r=>r.status==='near').length,
@@ -53,30 +53,27 @@ export function summarize(rows:Row[]){
   goals:goals.length,
   capRoom:sum(rewards.filter(r=>r.status==='open'||r.status==='near')),
   goalGap:sum(goals.filter(r=>r.status!=='full')),
-  earned:rewards.reduce((s,r)=>s+Math.round(r.p.value*100),0)/100,
+  // Reward money adds up across campaigns; spendable amounts overlap, so they do not.
+  earned:sumCap(r=>r.p.earned),
+  capTotal:sumCap(r=>r.c.target),
+  rewardRoom:sumCap(r=>r.p.remaining),
+  over:sumCap(r=>r.p.over),
  };
 }
 
-export function periodSpend(entries:Entry[],start:string,end:string,cardId?:string){
- return entries.filter(e=>e.date>=start&&e.date<=end&&(!cardId||e.cardId===cardId)).reduce((s,e)=>s+Math.round(e.amount*100),0)/100;
-}
+/** The first day a used-up campaign starts counting again. */
+export function resetsOn(r:Row){return r.p.end?addDays(r.p.end,1):'';}
 
-export type Offer={c:Campaign;card:Card;p:Progress;usable:boolean;tracked:boolean};
+export type Pace={kind:'cap';date:string}|{kind:'goal';perDay:number};
 
-/** Whether a card has room left for this offer right now. Query-only and unlimited offers have no ledger cap. */
-function usable(c:Campaign,card:Card,p:Progress){
- if(!p.active)return false;
- if(card.lookupOnly||!tracksProgress(c))return true;
- return c.kind==='spend'||p.remaining>0;
-}
-
-/** Flattened, ranked answers to "which card should I use here?" */
-export function rankOffers(data:Ledger,query:string,on:string,includeInactive=false,index=indexEntriesByCampaign(data.entries)):Offer[]{
- const offers=searchChannels(data,query,on,includeInactive,index).flatMap(({card,matches})=>matches.map(({c,p})=>({c,card,p,usable:usable(c,card,p),tracked:!card.lookupOnly&&tracksProgress(c)})));
- return offers.sort((a,b)=>Number(b.usable)-Number(a.usable)
-  ||Number(a.c.kind==='spend')-Number(b.c.kind==='spend')
-  ||b.c.rate-a.c.rate
-  ||(b.p.spendRemaining??Infinity)-(a.p.spendRemaining??Infinity));
+/** Straight-line read of the period so far; only speaks up when the answer changes a decision. */
+export function pace(r:Row,on:string):Pace|null{
+ if(!r.p.active||!r.p.start||!r.p.end||r.p.remaining===0)return null;
+ const elapsed=daysBetween(r.p.start,on)+1,left=daysBetween(on,r.p.end)+1;
+ if(r.c.kind==='spend')return {kind:'goal',perDay:Math.ceil(r.p.remaining/left)};
+ if(elapsed<3||r.p.value<=0)return null;
+ const days=Math.ceil(r.p.remaining/(r.p.value/elapsed));
+ return days<left?{kind:'cap',date:addDays(on,days)}:null;
 }
 
 export function offerActive(c:Campaign,card:Card,on:string){return range(c,card,on).active;}

@@ -1,2 +1,2 @@
-import Dashboard from './dashboard';
-export default function Home(){return <Dashboard/>;}
+import App from './app';
+export default function Home(){return <App/>;}

@@ -1,9 +1,15 @@
 export const FX_CURRENCIES = [
   {code:'JPY',name:'日圓',symbol:'¥',example:'10000'},
-  {code:'USD',name:'美元',symbol:'US$',example:'100'},
-  {code:'VND',name:'越南盾',symbol:'₫',example:'1000000'},
+  {code:'KRW',name:'韓元',symbol:'₩',example:'100000'},
   {code:'THB',name:'泰銖',symbol:'฿',example:'1000'},
+  {code:'USD',name:'美元',symbol:'US$',example:'100'},
   {code:'EUR',name:'歐元',symbol:'€',example:'100'},
+  {code:'HKD',name:'港幣',symbol:'HK$',example:'1000'},
+  {code:'SGD',name:'新幣',symbol:'S$',example:'100'},
+  {code:'VND',name:'越南盾',symbol:'₫',example:'1000000'},
+  {code:'GBP',name:'英鎊',symbol:'£',example:'100'},
+  {code:'CNY',name:'人民幣',symbol:'CN¥',example:'1000'},
+  {code:'AUD',name:'澳幣',symbol:'A$',example:'100'},
 ] as const;
 export type FxCurrency = typeof FX_CURRENCIES[number]['code'];
 export const FX_NETWORKS = ['visa','mastercard','jcb'] as const;

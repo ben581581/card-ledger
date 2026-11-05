@@ -5,6 +5,13 @@ const formatter=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
 const compactFormatter=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:0});
 export const money=(n:number)=>formatter.format(n);
 export const whole=(n:number)=>compactFormatter.format(Math.floor(n));
+export const rate=(n:number)=>formatter.format(n);
+/** Long marketing labels do not fit a row; the number does. */
+export const shortRate=(c:Pick<Campaign,'kind'|'rate'|'rateLabel'>)=>{
+ if(c.kind==='spend')return '滿額';
+ const label=c.rateLabel?.trim();
+ return label&&label.length<=7?label:c.rate>0?`${rate(c.rate)}%`:'優惠';
+};
 export const periodNames:Record<Campaign['period'],string>={month:'每月',bill:'帳單週期',quarter:'每季',custom:'指定期間'};
 export const statusNames:Record<Status,string>={near:'接近上限',open:'可刷',unset:'未設定回饋率',full:'已滿額',upcoming:'尚未開始',ended:'已結束'};
 

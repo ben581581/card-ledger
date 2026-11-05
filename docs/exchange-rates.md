@@ -1,6 +1,6 @@
 # Card-network exchange rates
 
-CARDI displays JPY, USD, VND, THB and EUR spending converted to TWD, comparing Visa, Mastercard and JCB. Amounts and fees stay in the browser and are not saved to the shared ledger or sent to the rate provider.
+CARDI displays spending in 11 currencies (JPY, KRW, THB, USD, EUR, HKD, SGD, VND, GBP, CNY, AUD) converted to TWD, comparing Visa, Mastercard and JCB. Amounts and fees stay in the browser and are not saved to the shared ledger or sent to the rate provider.
 
 ## Source selection
 
@@ -16,7 +16,7 @@ The adapter can later be replaced with an authorized official feed or a provider
 
 ## Operational behavior
 
-- `/api/exchange-rates?currency=JPY` accepts only five fixed currency codes. No remote URL, amount, fee, date or secret is accepted from callers.
+- `/api/exchange-rates?currency=JPY` accepts only the fixed currency codes in `lib/fx.ts`. No remote URL, amount, fee, date or secret is accepted from callers.
 - Parsed successful responses use the Next persistent data cache with a six-hour revalidation interval. CDN responses can be cached for 15 minutes; no Neon schema, database writes, paid API or cron is needed.
 - Each network retains its own quote date. Different dates are explicitly highlighted; the UI does not claim a same-day winning network.
 - Missing or invalid rows remain unavailable. Wrong currency/direction, duplicate networks, altered tables, future dates, implausible rates, excessive response size or failed HTTP responses fail safely.
@@ -26,4 +26,4 @@ The adapter can later be replaced with an authorized official feed or a provider
 
 ## Verification
 
-Run `node --test tests/fx.test.cjs tests/group-campaigns.test.cjs` and `npm run build -- --webpack`. The FX tests use synthetic HTML and cover currency direction, independent dates, source precision, missing/malformed data, expiry, input validation and monetary rounding. `work/` is excluded from the repository and contains only local research and isolation tools.
+Run `npm test` and `npm run build`. The FX tests use synthetic HTML and cover currency direction, independent dates, source precision, missing/malformed data, expiry, input validation and monetary rounding. `work/` is excluded from the repository and contains only local research and isolation tools.
