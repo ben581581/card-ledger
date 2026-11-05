@@ -69,7 +69,7 @@ export function RecordSheet({data,draft,notes,busy,error,conflict,onSync,onClose
   right={<button type="button" className="text strong" disabled={busy||!valid} onClick={save}>{busy?'儲存中':'儲存'}</button>}>
   <form onSubmit={e=>{e.preventDefault();save();}}>
    <div className="amount-pad">
-    <div className="amount-input"><span>NT$</span><input aria-label="消費金額" className="num" type="number" inputMode="decimal" min="0.01" max="10000000000" step="0.01" data-autofocus={!editing||undefined} placeholder="0" value={amountText} onChange={e=>setAmountText(e.target.value)} style={{width:`${Math.max(1,amountText.length)+.7}ch`}}/></div>
+    <div className="amount-input"><span>NT$</span><div className="amount-field" style={{'--amount':`${amountText.length>9?32:amountText.length>6?42:52}px`} as React.CSSProperties}><input aria-label="消費金額" className="num" type="number" inputMode="decimal" min="0.01" max="10000000000" step="0.01" data-autofocus={!editing||undefined} placeholder="0" value={amountText} onChange={e=>setAmountText(e.target.value)}/></div></div>
    </div>
    <label className="where"><MapPin size={17}/><input aria-label="在哪裡刷" maxLength={500} enterKeyHint="done" value={note} onChange={e=>{setNote(e.target.value);if(!editing)setPicked(null);}} placeholder="在哪裡刷？蝦皮、全聯…"/></label>
    {notes.length>0&&<div className="chips" role="group" aria-label="常用通路">{notes.map(n=><button type="button" key={n} className="chip" aria-pressed={note===n} onClick={()=>{setNote(note===n?'':n);if(!editing)setPicked(null);}}>{n}</button>)}</div>}
