@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Serif } from "next/font/google";
 import "./globals.css";
+
+// Figures are set in a serif, as in print; Chinese stays in the system face.
+const serif = Instrument_Serif({ weight: "400", subsets: ["latin"], variable: "--font-serif", display: "swap" });
 
 export const metadata: Metadata = {
   title: "CARDI｜額度、回饋與卡片",
@@ -14,7 +18,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {capable:true,title:"CARDI",statusBarStyle:"black-translucent"},
 };
-export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#000000',colorScheme:'dark'};
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#0c0b0a',colorScheme:'dark'};
 
 export default function RootLayout({
   children,
@@ -22,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-Hant">
+    <html lang="zh-Hant" className={serif.variable}>
       <body className="antialiased">{children}</body>
     </html>
   );
