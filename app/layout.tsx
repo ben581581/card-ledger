@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {capable:true,title:"CARDI",statusBarStyle:"black-translucent"},
 };
-export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#0c0b0a',colorScheme:'dark'};
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#0b0a09',colorScheme:'dark'};
 
 export default function RootLayout({
   children,

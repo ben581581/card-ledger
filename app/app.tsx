@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import dynamic from 'next/dynamic';
-import {AlertCircle,ArrowLeftRight,Check,ChevronLeft,ChevronRight,Gauge,Layers,Plus,RefreshCw,Tag} from 'lucide-react';
+import {AlertCircle,Check,RefreshCw} from 'lucide-react';
 import {useLedger} from './use-ledger';
 import type {Modal} from './editor-types';
 import {type Campaign,type Card,type Entry,type Ledger,today,removeCampaign} from '../lib/ledger';
@@ -10,7 +10,7 @@ import {parseChannels} from '../lib/channels';
 import {registrationFromFields,safeRegistrationUrl} from '../lib/registration';
 import {trackedRows} from '../lib/insights';
 import {type Catalog,type CatalogCard,catalogToLedger} from '../lib/catalog';
-import {ALL,HomeView} from './views/home';
+import {HomeView} from './views/home';
 import {OffersView} from './views/offers';
 import {Sheet} from './ui/sheet';
 import {haptic} from './ui/haptic';
@@ -26,14 +26,14 @@ const Editor=dynamic(()=>import('./editor'),{ssr:false});
 type Tab='home'|'offers'|'explore'|'rates';
 type Detail={kind:'campaign';id:string}|{kind:'offer';id:string;query:string}|{kind:'card';id:string}|{kind:'catalog';id:string}|{kind:'history'};
 type Toast={text:string;undo?:()=>void};
-const tabs:[Tab,string,typeof Gauge][]=[['home','額度',Gauge],['offers','優惠',Tag],['explore','卡庫',Layers],['rates','匯率',ArrowLeftRight]];
+const tabs:[Tab,string][]=[['home','額度'],['offers','優惠'],['explore','卡庫'],['rates','匯率']];
 const detailTitle={campaign:'活動進度',offer:'優惠',card:'卡片',catalog:'卡片資訊',history:'消費紀錄'};
 const upsert=<T extends {id:string}>(items:T[],item:T)=>items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):[...items,item];
 
 export default function App(){
  const [tab,setTab]=useState<Tab>('home'),[seen,setSeen]=useState<Set<Tab>>(()=>new Set<Tab>(['home']));
  const [modal,setModal]=useState<Modal|null>(null),[draft,setDraft]=useState<Draft|null>(null),[detail,setDetail]=useState<Detail|null>(null);
- const [now,setNow]=useState(today),[on,setOn]=useState(today),[selected,setSelected]=useState(ALL);
+ const [now,setNow]=useState(today),[on,setOn]=useState(today);
  const [catalog,setCatalog]=useState<Catalog|null>(null),[toast,setToast]=useState<Toast|null>(null);
  const {data,loading,saving,syncing,ready,error,setError,conflict,setConflict,updated,notice,load,cancelRead,save}=useLedger(!!modal||!!draft);
  const scroll=useRef<Partial<Record<Tab,number>>>({});
@@ -63,7 +63,7 @@ export default function App(){
  function record(value:Draft={}){
   if(!data.cards.length){edit({type:'card'});return;}
   if(!cancelRead())return;
-  clearEditing();setDraft({...value,cardId:value.cardId??value.entry?.cardId??(selected===ALL?undefined:selected)});
+  clearEditing();setDraft({...value,cardId:value.cardId??value.entry?.cardId});
  }
  const openEntry=(entry:Entry)=>record({entry});
  function shift(n:number){const d=new Date(on+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+n,1);const v=d.toISOString().slice(0,10);setOn(v.slice(0,7)===now.slice(0,7)?now:v);}
@@ -76,9 +76,7 @@ export default function App(){
   if(type==='card')next={cards:data.cards.filter(c=>c.id!==id),campaigns:data.campaigns.filter(c=>c.cardId!==id),entries:data.entries.filter(e=>e.cardId!==id)};
   if(type==='campaign')next=removeCampaign(data,id);
   if(type==='entry')next={...data,entries:data.entries.filter(e=>e.id!==id)};
-  const done=await save(next);
-  if(done&&type==='card'&&selected===id)setSelected(ALL);
-  return done;
+  return save(next);
  }
 
  async function saveEntry(value:Entry){
@@ -132,17 +130,9 @@ export default function App(){
  return <>
   <div className="stage">
    <div className="app">
-    {tab==='home'&&<header className="topbar">
-     <div className="month" role="group" aria-label="查看月份">
-      <button aria-label="上個月" onClick={()=>shift(-1)}><ChevronLeft size={18}/></button>
-      <button className="month-label" onClick={()=>setOn(now)} aria-label="回到本月">{Number(on.slice(5,7))} 月{on.slice(0,4)!==now.slice(0,4)&&<small>{on.slice(0,4)}</small>}</button>
-      <button aria-label="下個月" onClick={()=>shift(1)}><ChevronRight size={18}/></button>
-     </div>
-     <button className={`sync${saving||loading||syncing?' busy':error?' bad':''}`} disabled={saving||loading||syncing} onClick={()=>void load()} aria-label={`雲端同步：${syncState}，點一下重新整理`}><i/>{syncState}</button>
-    </header>}
     {error&&!modal&&!draft&&tab!=='rates'&&<div className="banner" role="alert"><AlertCircle size={18} style={{marginTop:1}}/><div>{error}<button onClick={()=>void load()}>重新讀取</button></div></div>}
     <main>
-     <div hidden={tab!=='home'}><HomeView data={data} on={on} today={now} loading={loading} selected={selected} onSelect={setSelected} onOpen={id=>setDetail({kind:'campaign',id})} onCard={id=>setDetail({kind:'card',id})} onEntry={openEntry} onRecord={cardId=>record({cardId})} onAddCampaign={cardId=>edit({type:'campaign',cardId})} onAddCard={()=>edit({type:'card'})} onHistory={()=>setDetail({kind:'history'})}/></div>
+     <div hidden={tab!=='home'}><HomeView data={data} on={on} today={now} loading={loading} sync={{label:syncState,state:saving||loading||syncing?'busy':error?'bad':'ok'}} onShift={shift} onToday={()=>setOn(now)} onSync={()=>void load()} onOpen={id=>setDetail({kind:'campaign',id})} onCard={id=>setDetail({kind:'card',id})} onEntry={openEntry} onRecord={cardId=>record({cardId})} onAddCampaign={cardId=>edit({type:'campaign',cardId})} onAddCard={()=>edit({type:'card'})} onHistory={()=>setDetail({kind:'history'})}/></div>
      {seen.has('offers')&&<div hidden={tab!=='offers'}><OffersView data={data} today={now} catalog={catalog} onOffer={(id,query)=>setDetail({kind:'offer',id,query})} onCard={id=>setDetail({kind:'card',id})} onCatalog={id=>setDetail({kind:'catalog',id})} onRecord={(cardId,note,amount)=>record({cardId,note,amount})} onAddCampaign={()=>edit({type:'campaign'})}/></div>}
      {seen.has('explore')&&<div hidden={tab!=='explore'}><ExploreView data={data} today={now} catalog={catalog} onCatalog={id=>setDetail({kind:'catalog',id})} onCard={id=>setDetail({kind:'card',id})} onAddCard={()=>edit({type:'card'})}/></div>}
      {seen.has('rates')&&<div hidden={tab!=='rates'}><RatesView data={data} today={now}/></div>}
@@ -151,8 +141,11 @@ export default function App(){
   </div>
 
   <nav className="dock" aria-label="主要功能">
-   <div className="tabs" style={{'--at':tabs.findIndex(([key])=>key===tab)} as React.CSSProperties}><i aria-hidden="true"/>{tabs.map(([key,label,Icon])=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>go(key)}><Icon size={21} strokeWidth={tab===key?2.2:1.8}/>{label}</button>)}</div>
-   <button className="fab" aria-label="記一筆消費" disabled={!ready} onClick={()=>{haptic();record();}}><Plus size={26} strokeWidth={2.4}/></button>
+   <div className="index" style={{'--at':tabs.findIndex(([key])=>key===tab)} as React.CSSProperties}>
+    {tabs.map(([key,label],i)=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>go(key)}><small className="num">0{i+1}</small>{label}</button>)}
+    <i aria-hidden="true"/>
+   </div>
+   <button className="seal-btn" aria-label="記一筆消費" disabled={!ready} onClick={()=>{haptic();record();}}><span>記</span></button>
   </nav>
 
   {detail&&<DetailSheet detail={detail} data={data} on={on} now={now} catalog={catalog} busy={saving} onClose={()=>setDetail(null)} onDetail={setDetail} onRecord={record} onEdit={edit} onAddCatalog={addFromCatalog}/>}
