@@ -17,6 +17,8 @@ export type CatalogCard={
  id:string;name:string;bank:string;hue:number;match?:string[];domestic:number;overseas:number;miles?:string;
  fee:number;waiver:string;fxFee:number;income?:number;tags:string[];unit:string;summary:string;perks:Perk[];
  welcome?:string;welcomeEnd?:string;url:string;verified?:'official'|'partial'|'listing';
+ /** A thumbnail of the bank's own card face, stored under public/cards/. */
+ face?:string;
 };
 export type Catalog={updatedAt:string;cards:CatalogCard[]};
 
@@ -126,7 +128,7 @@ const capPeriods:Partial<Record<NonNullable<Perk['capPeriod']>,Campaign['period'
 
 /** Copies a catalog card into the ledger; offers with a cap are tracked, the rest are for lookup. */
 export function catalogToLedger(entry:CatalogCard,id:()=>string,closeDay:number,lookupOnly:boolean,on:string):{card:Card;campaigns:Campaign[]}{
- const card:Card={id:id(),name:entry.name,bank:entry.bank,closeDay,color:faceColors(entry.hue)[0],lookupOnly,catalogId:entry.id};
+ const card:Card={id:id(),name:entry.name,bank:entry.bank,closeDay,color:faceColors(entry.hue)[0],lookupOnly,catalogId:entry.id,...(entry.face?{imageUrl:entry.face}:{})};
  const reminder=(perk:Perk):Registration=>perk.reg?{type:'required',label:'需登錄',details:perk.note||'',url:entry.url.startsWith('https:')?entry.url:undefined}:{type:'verify',label:'請核對條件',details:perk.note||'',url:entry.url.startsWith('https:')?entry.url:undefined};
  const campaigns:Campaign[]=[];
  const everyday=(name:string,rate:number,channels:string[])=>{

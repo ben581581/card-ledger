@@ -24,8 +24,14 @@ export function CardArt({card,compact=false}:{card:Card;compact?:boolean}){
  </div>;
 }
 
-/** Catalog cards share one drawn face, tinted by bank, instead of a mix of hot-linked bank images. */
-export function CatalogFace({entry}:{entry:Pick<CatalogCard,'name'|'bank'|'hue'>}){
+/** Catalog cards show the bank's face from public/cards/; without one, a drawn face tinted by bank. */
+export function CatalogFace({entry}:{entry:Pick<CatalogCard,'name'|'bank'|'hue'|'face'>}){
  const [a,b]=faceColors(entry.hue);
+ const [failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false),[portrait,setPortrait]=useState(false);
+ if(entry.face&&!failed)return <div className="art-wrap"><div className="art">
+  {portrait&&<img className="backdrop" src={entry.face} alt="" aria-hidden="true"/>}
+  <img src={entry.face} alt={`${entry.name} 卡面`} loading="lazy" decoding="async" className={[portrait?'portrait':'',loaded?'ready':''].filter(Boolean).join(' ')||undefined}
+   onLoad={e=>{setPortrait(e.currentTarget.naturalHeight>e.currentTarget.naturalWidth*1.15);setLoaded(true);}} onError={()=>setFailed(true)}/>
+ </div></div>;
  return <div className="art-wrap"><div className="art art-face tinted" style={{'--a':a,'--b':b} as React.CSSProperties}><small>{entry.bank}</small><b>{entry.name}</b></div></div>;
 }

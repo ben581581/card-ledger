@@ -14,4 +14,6 @@ const normalize=(v:string)=>v.toLowerCase().replace(/[\s\-＠@]/g,'');
 export function matchedCardImage(name:string,bank:string){const n=normalize(name),b=normalize(bank);const matches=cardImages.filter(c=>(!b||b.includes(c.bank)||n.includes(c.bank))&&c.keys.some(k=>n.includes(k)));return matches.find(c=>c.id.startsWith('dbs-aov-')&&n.includes(c.name.split(' ').at(-1)!))||matches[0];}
 export function cardImage(card:Card){return card.imageUrl!==undefined?card.imageUrl:matchedCardImage(card.name,card.bank)?.url||'';}
 export function cardImageZoom(src:string){return cardImages.some(c=>c.bank==='永豐'&&c.url===src)?1.24:1;}
-export function safeImageUrl(value:string){if(uploadedImagePath.test(value))return true;try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}}
+/** Catalog card faces shipped with the app. */
+export const bundledFacePath=/^\/cards\/[a-z0-9-]+\.webp$/;
+export function safeImageUrl(value:string){if(uploadedImagePath.test(value)||bundledFacePath.test(value))return true;try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}}
