@@ -7,7 +7,8 @@ import {type CatalogCard,faceColors} from '../../lib/catalog';
 // Remembered across mounts, so a known portrait card never starts out cropped.
 const portraits=new Set<string>();
 
-export function CardArt({card,compact=false}:{card:Card;compact?:boolean}){
+/** eager: for cards inside a horizontal scroller, where lazy loading does not reliably fire. */
+export function CardArt({card,compact=false,eager=false}:{card:Card;compact?:boolean;eager?:boolean}){
  const src=cardImage(card),[failed,setFailed]=useState(''),[loaded,setLoaded]=useState('');
  const zoom=card.imageZoom??cardImageZoom(src);
  const offset=src==='https://bank.sinopac.com/upload/sinopac/picture/16c98d0bff700000bd35.jpg'?' translateY(2.5%)':'';
@@ -18,7 +19,7 @@ export function CardArt({card,compact=false}:{card:Card;compact?:boolean}){
    ?<div className="art">
     {/* Portrait art stays upright: its own colours fill the landscape frame behind it. */}
     {portrait&&loaded===src&&<img className="backdrop" src={src} alt="" aria-hidden="true" referrerPolicy="no-referrer"/>}
-    <img src={src} className={classes} alt={compact?'':`${card.name} 卡面`} loading="lazy" decoding="async" referrerPolicy="no-referrer" style={{transform:`scale(${zoom})${offset}`}} onLoad={e=>{if(e.currentTarget.naturalHeight>e.currentTarget.naturalWidth*1.15)portraits.add(src);setLoaded(src);}} onError={()=>setFailed(src)}/>
+    <img src={src} className={classes} alt={compact?'':`${card.name} 卡面`} loading={eager?'eager':'lazy'} decoding="async" referrerPolicy="no-referrer" style={{transform:`scale(${zoom})${offset}`}} onLoad={e=>{if(e.currentTarget.naturalHeight>e.currentTarget.naturalWidth*1.15)portraits.add(src);setLoaded(src);}} onError={()=>setFailed(src)}/>
    </div>
    :<div className="art art-face" style={{'--c':card.color} as React.CSSProperties}><small>{card.bank||'CARDI'}</small><b>{card.name}</b></div>}
  </div>;

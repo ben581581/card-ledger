@@ -88,7 +88,7 @@ export function HomeView({data,on,today,loading,sync,onShift,onToday,onSync,onOp
     <div className="pay-rail" ref={rail} aria-label="選擇卡片">{stack.map(({card,rows},i)=>{
      const lead=rows[0];
      return <button key={card.id} className="pay-card" aria-current={i===at||undefined} aria-label={i===at?`${card.name} 卡片詳情`:card.name} onClick={()=>i===at?onCard(card.id):jump(i)}>
-      <CardArt card={card}/>
+      <CardArt card={card} eager/>
       {lead&&<span className={`stack-tag s-${lead.status}`}>{lead.status==='full'
        ?<em>{lead.c.kind==='reward'?'滿':'達'}</em>
        :<><b className="num">{lead.p.spendRemaining===null?'—':whole(lead.p.spendRemaining)}</b><small>{lead.c.kind==='reward'?'還能刷':'還差'}</small></>}</span>}
