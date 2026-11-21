@@ -58,11 +58,11 @@ html[data-sheets] .stage{transform:scale(.95);filter:brightness(.7)}
 .sync.busy i{background:var(--t2);animation:blink 1s infinite}
 .sync.bad i{background:var(--seal)}
 @keyframes blink{50%{opacity:.25}}
-.mast-month{display:flex;align-items:center;justify-content:space-between;margin:18px -10px 0}
-.mast-arrow{width:44px;height:64px;display:grid;place-items:center;color:var(--t3);transition:color .2s,transform .2s var(--ease)}
+.mast-month{display:flex;align-items:center;justify-content:space-between;margin:12px -10px 0}
+.mast-arrow{width:44px;height:48px;display:grid;place-items:center;color:var(--t3);transition:color .2s,transform .2s var(--ease)}
 .mast-arrow:active{color:var(--t1);transform:scale(.88)}
-.mast-title h1{font:400 clamp(56px,17vw,76px)/1 var(--cjk);letter-spacing:.06em;text-align:center}
-.mast-rule{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-top:20px;font-size:11.5px;letter-spacing:.12em;color:var(--t3)}
+.mast-title h1{font:400 clamp(32px,9.5vw,40px)/1 var(--cjk);letter-spacing:.08em;text-align:center}
+.mast-rule{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin-top:14px;font-size:11.5px;letter-spacing:.12em;color:var(--t3)}
 .mast-rule i{position:relative;height:1px;background:linear-gradient(90deg,var(--t2) calc(var(--day)*100%),var(--line2) 0)}
 .mast-rule i::after{content:"";position:absolute;left:calc(var(--day)*100%);top:-5px;width:1.5px;height:11px;background:var(--seal);animation:fade .8s .3s both}
 
@@ -83,21 +83,26 @@ html[data-sheets] .stage{transform:scale(.95);filter:brightness(.7)}
 .aside button{color:var(--t2);text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
 .more{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:34px;padding:12px 0;border-top:.5px solid var(--line2);font-size:13px;letter-spacing:.06em;color:var(--t2)}
 
-/* ── Wallet stack: the cards themselves, with the open one's caps beneath it ── */
-.stack{--w:min(calc(100vw - 44px),556px);margin-top:34px}
-.stack-card{position:relative;display:block;width:100%;transition:transform .45s var(--ease);animation:rise .7s .12s var(--ease) both}
-.stack-card .art-wrap{box-shadow:0 -6px 20px rgba(0,0,0,.55),0 14px 30px rgba(0,0,0,.4)}
-.stack-card+.stack-card{margin-top:calc(var(--w) / -1.586 + 58px)}
-.stack-panel+.stack-card{margin-top:30px}
-.stack-card:not(.open):active{transform:translateY(-5px)}
+/* ── Card picker, as Apple Pay shows it: one card centred, neighbours peeking ── */
+.pay{--cw:min(62vw,250px);margin:26px -22px 0}
+.pay-rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px calc(50% - var(--cw)/2) 16px;scrollbar-width:none;overscroll-behavior-x:contain}
+.pay-rail::-webkit-scrollbar{display:none}
+.pay-card{position:relative;flex:0 0 var(--cw);scroll-snap-align:center;scroll-snap-stop:always;will-change:transform,opacity;transform-origin:50% 60%;animation:rise .7s .1s var(--ease) both}
+.pay-card .art-wrap{box-shadow:0 22px 34px -14px rgba(0,0,0,.8),0 0 0 .5px rgba(255,255,255,.06)}
+.pay-card .stack-tag{top:8px;right:8px;height:26px;padding:0 9px;line-height:26px;gap:5px}
+.pay-card .stack-tag b{font-size:16px}
+.pay-card .stack-tag small{font-size:9px;letter-spacing:.14em}
+.pay-dots{display:flex;justify-content:center;gap:7px;margin-top:2px}
+.pay-dots i{width:6px;height:6px;border-radius:50%;background:var(--line2);transition:background .3s}
+.pay-dots i.on{background:var(--t1)}
+.pay-panel{margin-top:18px;border-top:.5px solid var(--line2);animation:rise .45s var(--ease) both}
+.pay-panel .ledger-head{grid-template-columns:minmax(0,1fr) auto}
 .stack-tag{position:absolute;top:10px;right:10px;display:flex;align-items:baseline;gap:7px;height:30px;padding:0 12px;border-radius:15px;background:rgba(11,10,9,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 .5px rgba(239,232,220,.2);color:var(--t1);line-height:30px}
 .stack-tag b{font:400 20px/1 var(--serif);letter-spacing:-.01em}
 .stack-tag small{font-size:10px;letter-spacing:.18em;color:var(--t2)}
 .stack-tag.s-near b{color:var(--seal-text)}
 .stack-tag.s-full{padding:0 6px;background:rgba(11,10,9,.5)}
 .stack-tag em{display:inline-grid;place-items:center;align-self:center;width:22px;height:22px;border-radius:3px;font:500 13px/1 var(--cjk);font-style:normal;color:var(--seal-text);box-shadow:inset 0 0 0 1px var(--seal);transform:rotate(-8deg)}
-.stack-panel{margin-top:0;border-top:0;padding-top:8px;animation:rise .5s var(--ease) both}
-.stack-panel .ledger-head{grid-template-columns:minmax(0,1fr) auto;padding-top:10px}
 
 /* ── Journal ── */
 .journal{margin-top:48px;border-top:1px solid var(--rule)}

@@ -1,5 +1,5 @@
 'use client';
-import {Fragment,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {ChevronLeft,ChevronRight,Plus} from 'lucide-react';
 import type {Card,Entry,Ledger} from '../../lib/ledger';
 import {type Row,type Status,resetsOn,trackedRows} from '../../lib/insights';
@@ -34,8 +34,31 @@ export function HomeView({data,on,today,loading,sync,onShift,onToday,onSync,onOp
   .sort((a,b)=>rank[a.rows[0].status]-rank[b.rows[0].status]);
  // Every card is in the wallet: those with something pressing on top, quiet ones underneath.
  const stack=[...groups,...cards.filter(c=>!groups.some(g=>g.card.id===c.id)).map(card=>({card,rows:[] as Row[]}))];
- const [open,setOpen]=useState<string|null>(null);
- const current=open&&stack.some(g=>g.card.id===open)?open:stack[0]?.card.id;
+ const rail=useRef<HTMLDivElement>(null),[at,setAt]=useState(0);
+ const selected=stack[Math.min(at,stack.length-1)];
+ // Cards ease back and fade as they leave the centre; the one nearest it is the selection.
+ useEffect(()=>{
+  const el=rail.current;if(!el)return;
+  let frame=0;
+  const paint=()=>{
+   frame=0;
+   const center=el.scrollLeft+el.clientWidth/2;let best=0,nearest=Infinity;
+   [...el.children].forEach((child,i)=>{
+    const slide=child as HTMLElement,distance=Math.abs(slide.offsetLeft+slide.offsetWidth/2-center);
+    const k=Math.min(1,distance/(slide.offsetWidth+14));
+    slide.style.transform=`scale(${1-k*.1})`;slide.style.opacity=String(1-k*.45);
+    if(distance<nearest){nearest=distance;best=i;}
+   });
+   setAt(best);
+  };
+  const onScroll=()=>{if(!frame)frame=requestAnimationFrame(paint);};
+  paint();el.addEventListener('scroll',onScroll,{passive:true});
+  return()=>{el.removeEventListener('scroll',onScroll);cancelAnimationFrame(frame);};
+ },[stack.length]);
+ function jump(i:number){
+  const el=rail.current,slide=el?.children[i] as HTMLElement|undefined;
+  if(el&&slide)el.scrollTo({left:slide.offsetLeft-(el.clientWidth-slide.offsetWidth)/2,behavior:'smooth'});
+ }
  const past=rows.filter(r=>!r.p.active);
  const recent=data.entries.map((e,i)=>({e,i})).sort((a,b)=>b.e.date.localeCompare(a.e.date)||b.i-a.i).slice(0,5).map(x=>x.e);
 
@@ -60,26 +83,27 @@ export function HomeView({data,on,today,loading,sync,onShift,onToday,onSync,onOp
   :!cards.length?<div className="empty"><h3>從第一張卡開始</h3><p>新增信用卡，每個活動還能刷多少、有沒有滿額，都會在這裡一眼看到。</p><button className="btn btn-primary" onClick={onAddCard}><Plus size={17}/>新增卡片</button></div>
   :<>
 
-   {/* The wallet: cards stacked as they are; the open one slides out with its caps beneath it. */}
-   <div className="stack">{stack.map(({card,rows},i)=>{
-    const lead=rows[0],isOpen=card.id===current;
-    return <Fragment key={card.id}>
-     <button className={`stack-card${isOpen?' open':''}`} style={{zIndex:i+1}} aria-expanded={isOpen} aria-label={isOpen?`${card.name} 卡片詳情`:`展開 ${card.name}`} onClick={()=>isOpen?onCard(card.id):setOpen(card.id)}>
+   {/* The card picker, as Apple Pay shows it: one card centred, its neighbours peeking; swipe to choose. */}
+   <div className="pay">
+    <div className="pay-rail" ref={rail} aria-label="選擇卡片">{stack.map(({card,rows},i)=>{
+     const lead=rows[0];
+     return <button key={card.id} className="pay-card" aria-current={i===at||undefined} aria-label={i===at?`${card.name} 卡片詳情`:card.name} onClick={()=>i===at?onCard(card.id):jump(i)}>
       <CardArt card={card}/>
       {lead&&<span className={`stack-tag s-${lead.status}`}>{lead.status==='full'
        ?<em>{lead.c.kind==='reward'?'滿':'達'}</em>
        :<><b className="num">{lead.p.spendRemaining===null?'—':whole(lead.p.spendRemaining)}</b><small>{lead.c.kind==='reward'?'還能刷':'還差'}</small></>}</span>}
-     </button>
-     {isOpen&&<section className="ledger stack-panel">
-      <header className="ledger-head">
-       <button className="ledger-title" onClick={()=>onCard(card.id)}><h2>{card.name}</h2><p>{billLine(card,rows)}</p></button>
-       <button className="ledger-add" onClick={()=>onRecord(card.id)} aria-label={`記一筆 ${card.name}`}><Plus size={16} strokeWidth={1.8}/></button>
-      </header>
-      {rows.length?rows.map(r=><CapRow key={r.c.id} row={r} onOpen={()=>onOpen(r.c.id)}/>)
-       :<p className="caption" style={{margin:'6px 0 12px'}}>這個月沒有進行中的活動。<button className="link" onClick={()=>onAddCampaign(card.id)}>新增活動</button></p>}
-     </section>}
-    </Fragment>;
-   })}</div>
+     </button>;
+    })}</div>
+    {stack.length>1&&<div className="pay-dots" aria-hidden="true">{stack.map((g,i)=><i key={g.card.id} className={i===at?'on':undefined}/>)}</div>}
+   </div>
+   {selected&&<section className="ledger pay-panel" key={selected.card.id}>
+    <header className="ledger-head">
+     <button className="ledger-title" onClick={()=>onCard(selected.card.id)}><h2>{selected.card.name}</h2><p>{billLine(selected.card,selected.rows)}</p></button>
+     <button className="ledger-add" onClick={()=>onRecord(selected.card.id)} aria-label={`記一筆 ${selected.card.name}`}><Plus size={16} strokeWidth={1.8}/></button>
+    </header>
+    {selected.rows.length?selected.rows.map(r=><CapRow key={r.c.id} row={r} onOpen={()=>onOpen(r.c.id)}/>)
+     :<p className="caption" style={{margin:'6px 0 12px'}}>這個月沒有進行中的活動。<button className="link" onClick={()=>onAddCampaign(selected.card.id)}>新增活動</button></p>}
+   </section>}
 
    {past.length>0&&<>
     <button className="more" aria-expanded={showPast} onClick={()=>setShowPast(v=>!v)}>{showPast?'收起':'顯示'}非當期活動 <span className="num">{past.length}</span></button>
