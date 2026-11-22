@@ -1,0 +1,10 @@
+.next
+node_modules
+work
+drizzle
+public/cards
+lib/catalog-data.json
+scripts/card-faces.json
+*.md
+package-lock.json
+next-env.d.ts

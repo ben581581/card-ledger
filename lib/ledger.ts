@@ -1,56 +1,209 @@
-import type {Registration} from './registration';
-export type Card={id:string;name:string;bank:string;closeDay:number;color:string;imageUrl?:string;imageZoom?:number;lookupOnly?:boolean;catalogId?:string};
-export type Campaign={id:string;cardId:string;name:string;kind:'reward'|'spend'|'unlimited';period:'month'|'bill'|'quarter'|'custom';target:number;rate:number;rateLabel?:string;queryOnly?:boolean;start:string;end:string;notes:string;channels?:string[];registration?:Registration};
-export type Entry={id:string;cardId:string;date:string;amount:number;note:string;campaignIds:string[];reward:number|null};
-export type Ledger={cards:Card[];campaigns:Campaign[];entries:Entry[]};
-export const empty:Ledger={cards:[],campaigns:[],entries:[]};
-export function removeCampaign(data:Ledger,id:string):Ledger{
- return {...data,campaigns:data.campaigns.filter(c=>c.id!==id),entries:data.entries.map(entry=>entry.campaignIds.includes(id)?{...entry,campaignIds:entry.campaignIds.filter(value=>value!==id)}:entry)};
+import type { Registration } from './registration';
+
+export type Card = {
+  id: string;
+  name: string;
+  bank: string;
+  closeDay: number;
+  color: string;
+  imageUrl?: string;
+  imageZoom?: number;
+  lookupOnly?: boolean;
+  catalogId?: string;
+};
+
+export type Campaign = {
+  id: string;
+  cardId: string;
+  name: string;
+  kind: 'reward' | 'spend' | 'unlimited';
+  period: 'month' | 'bill' | 'quarter' | 'custom';
+  target: number;
+  rate: number;
+  rateLabel?: string;
+  queryOnly?: boolean;
+  start: string;
+  end: string;
+  notes: string;
+  channels?: string[];
+  registration?: Registration;
+};
+
+export type Entry = {
+  id: string;
+  cardId: string;
+  date: string;
+  amount: number;
+  note: string;
+  campaignIds: string[];
+  reward: number | null;
+};
+
+export type Ledger = { cards: Card[]; campaigns: Campaign[]; entries: Entry[] };
+
+export const empty: Ledger = { cards: [], campaigns: [], entries: [] };
+
+export function removeCampaign(data: Ledger, id: string): Ledger {
+  return {
+    ...data,
+    campaigns: data.campaigns.filter(c => c.id !== id),
+    entries: data.entries.map(entry =>
+      entry.campaignIds.includes(id)
+        ? { ...entry, campaignIds: entry.campaignIds.filter(value => value !== id) }
+        : entry,
+    ),
+  };
 }
-export function tracksProgress(c:Campaign){return c.kind!=='unlimited'&&!c.queryOnly;}
-export function addDays(day:string,n:number){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
-export function daysBetween(from:string,to:string){return Math.round((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);}
-export function today(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());}
-function calendar(y:number,m:number,d:number){
- const value=new Date(0);
- // setUTCFullYear also handles years 0000–0099, which Date.UTC treats as 1900–1999.
- value.setUTCFullYear(y,m,d);
- return value;
+
+export function tracksProgress(c: Campaign) {
+  return c.kind !== 'unlimited' && !c.queryOnly;
 }
-function date(y:number,m:number,d:number){return calendar(y,m,d).toISOString().slice(0,10);}
-function closing(y:number,m:number,d:number){return date(y,m,Math.min(d,calendar(y,m+1,0).getUTCDate()));}
-function roundInteger(value:number){return Math.round(value+Number.EPSILON*Math.max(1,Math.abs(value)));}
-function cents(value:number){return roundInteger(value*100);}
-function floorMoney(value:number){
- const scaled=value*100;
- // Correct division noise at exact cent boundaries without rounding a real remainder up.
- return Math.floor(scaled+Number.EPSILON*Math.max(1,Math.abs(scaled)))/100;
+
+export function addDays(day: string, n: number) {
+  const d = new Date(day + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
-export function range(c:Campaign,card:Card,on:string){
- if(c.kind==='unlimited')return {start:c.start,end:c.end,active:(!c.start||c.start<=on)&&(!c.end||on<=c.end)};
- const [y,mo]=on.split('-').map(Number);const m=mo-1;let start='',end='';
- if(c.period==='month'){start=date(y,m,1);end=date(y,m+1,0);}
- if(c.period==='quarter'){const q=Math.floor(m/3)*3;start=date(y,q,1);end=date(y,q+3,0);}
- if(c.period==='bill'){const thisClose=closing(y,m,card.closeDay);const shift=on<=thisClose?0:1;end=closing(y,m+shift,card.closeDay);const prev=closing(y,m+shift-1,card.closeDay);const dt=new Date(prev+'T00:00:00Z');dt.setUTCDate(dt.getUTCDate()+1);start=dt.toISOString().slice(0,10);}
- if(c.period==='custom'){start=c.start;end=c.end;}
- if(c.start&&c.start>start)start=c.start;if(c.end&&c.end<end)end=c.end;
- return {start,end,active:start<=on&&on<=end};
+
+export function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86400000);
 }
-export function progress(c:Campaign,card:Card,entries:Entry[],on:string){
- const r=range(c,card,on);
- if(!tracksProgress(c))return {...r,spend:0,value:0,earned:0,over:0,percent:0,remaining:0,spendLimit:null,spendRemaining:null};
- const rows=entries.filter(e=>e.cardId===card.id&&e.campaignIds.includes(c.id)&&e.date>=r.start&&e.date<=r.end);
- // Sum money as cents so decimal purchases cannot leave a phantom cent at the target.
- const spendCents=rows.reduce((sum,e)=>sum+cents(e.amount),0);
- const valueCents=c.kind==='spend'?spendCents:rows.reduce((sum,e)=>sum+(e.reward==null?roundInteger(cents(e.amount)*c.rate/100):cents(e.reward)),0);
- const targetCents=cents(c.target),remainingCents=Math.max(0,targetCents-valueCents);
- const spend=spendCents/100,value=valueCents/100,remaining=remainingCents/100;
- const canConvert=c.kind==='spend'||c.rate>0;
- // Actual rewards consume the cap even when they differ from the configured rate.
- const spendLimit=canConvert?(c.kind==='spend'?targetCents/100:floorMoney(targetCents/c.rate)):null;
- const spendRemaining=canConvert?(c.kind==='spend'?remaining:floorMoney(remainingCents/c.rate)):null;
- // Spending past the cap earned nothing, so it never counts as money received.
- const earned=Math.min(valueCents,targetCents)/100;
- const over=c.kind==='reward'&&c.rate>0&&valueCents>targetCents?floorMoney((valueCents-targetCents)/c.rate):0;
- return {...r,spend,value,earned,over,percent:Math.min(100,Math.max(0,targetCents>0?valueCents/targetCents*100:0)),remaining,spendLimit,spendRemaining};
+
+export function today() {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+}
+
+/**
+ * The day a month is read on, n months away from the one being viewed.
+ * The current month reads as of today; a finished month as of its last day, so it shows how it
+ * ended; a month still to come as of its first day.
+ */
+export function shiftMonth(viewed: string, n: number, now: string) {
+  const [y, m] = viewed.split('-').map(Number);
+  const month = date(y, m - 1 + n, 1).slice(0, 7);
+  if (month === now.slice(0, 7)) return now;
+  return month < now.slice(0, 7) ? date(y, m + n, 0) : `${month}-01`;
+}
+
+function calendar(y: number, m: number, d: number) {
+  const value = new Date(0);
+  // setUTCFullYear also handles years 0000–0099, which Date.UTC treats as 1900–1999.
+  value.setUTCFullYear(y, m, d);
+  return value;
+}
+
+function date(y: number, m: number, d: number) {
+  return calendar(y, m, d).toISOString().slice(0, 10);
+}
+
+function closing(y: number, m: number, d: number) {
+  return date(y, m, Math.min(d, calendar(y, m + 1, 0).getUTCDate()));
+}
+
+function roundInteger(value: number) {
+  return Math.round(value + Number.EPSILON * Math.max(1, Math.abs(value)));
+}
+
+function cents(value: number) {
+  return roundInteger(value * 100);
+}
+
+function floorMoney(value: number) {
+  const scaled = value * 100;
+  // Correct division noise at exact cent boundaries without rounding a real remainder up.
+  return Math.floor(scaled + Number.EPSILON * Math.max(1, Math.abs(scaled))) / 100;
+}
+
+export function range(c: Campaign, card: Card, on: string) {
+  if (c.kind === 'unlimited')
+    return { start: c.start, end: c.end, active: (!c.start || c.start <= on) && (!c.end || on <= c.end) };
+  const [y, mo] = on.split('-').map(Number);
+  const m = mo - 1;
+  let start = '';
+  let end = '';
+  if (c.period === 'month') {
+    start = date(y, m, 1);
+    end = date(y, m + 1, 0);
+  }
+  if (c.period === 'quarter') {
+    const q = Math.floor(m / 3) * 3;
+    start = date(y, q, 1);
+    end = date(y, q + 3, 0);
+  }
+  if (c.period === 'bill') {
+    const thisClose = closing(y, m, card.closeDay);
+    const shift = on <= thisClose ? 0 : 1;
+    end = closing(y, m + shift, card.closeDay);
+    start = addDays(closing(y, m + shift - 1, card.closeDay), 1);
+  }
+  if (c.period === 'custom') {
+    start = c.start;
+    end = c.end;
+  }
+  if (c.start && c.start > start) start = c.start;
+  if (c.end && c.end < end) end = c.end;
+  return { start, end, active: start <= on && on <= end };
+}
+
+export function progress(c: Campaign, card: Card, entries: Entry[], on: string) {
+  const r = range(c, card, on);
+  if (!tracksProgress(c))
+    return {
+      ...r,
+      spend: 0,
+      value: 0,
+      earned: 0,
+      over: 0,
+      percent: 0,
+      remaining: 0,
+      spendLimit: null,
+      spendRemaining: null,
+    };
+  const rows = entries.filter(
+    e => e.cardId === card.id && e.campaignIds.includes(c.id) && e.date >= r.start && e.date <= r.end,
+  );
+  // Sum money as cents so decimal purchases cannot leave a phantom cent at the target.
+  const spendCents = rows.reduce((sum, e) => sum + cents(e.amount), 0);
+  const valueCents =
+    c.kind === 'spend'
+      ? spendCents
+      : rows.reduce(
+          (sum, e) =>
+            sum + (e.reward == null ? roundInteger((cents(e.amount) * c.rate) / 100) : cents(e.reward)),
+          0,
+        );
+  const targetCents = cents(c.target);
+  const remainingCents = Math.max(0, targetCents - valueCents);
+  const spend = spendCents / 100;
+  const value = valueCents / 100;
+  const remaining = remainingCents / 100;
+  const canConvert = c.kind === 'spend' || c.rate > 0;
+  // Actual rewards consume the cap even when they differ from the configured rate.
+  const spendLimit = canConvert
+    ? c.kind === 'spend'
+      ? targetCents / 100
+      : floorMoney(targetCents / c.rate)
+    : null;
+  const spendRemaining = canConvert
+    ? c.kind === 'spend'
+      ? remaining
+      : floorMoney(remainingCents / c.rate)
+    : null;
+  // Spending past the cap earned nothing, so it never counts as money received.
+  const earned = Math.min(valueCents, targetCents) / 100;
+  const over =
+    c.kind === 'reward' && c.rate > 0 && valueCents > targetCents
+      ? floorMoney((valueCents - targetCents) / c.rate)
+      : 0;
+  return {
+    ...r,
+    spend,
+    value,
+    earned,
+    over,
+    percent: Math.min(100, Math.max(0, targetCents > 0 ? (valueCents / targetCents) * 100 : 0)),
+    remaining,
+    spendLimit,
+    spendRemaining,
+  };
 }
